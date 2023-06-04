@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::dtos::mailer::SendMailDto;
 use crate::errors::Result;
-use crate::utils::google_token::{TokenHandler, test};
+use crate::utils::google_token::{TokenHandler};
 
 pub async fn mail_handler(
     State(state): State<TokenHandler>,
@@ -24,15 +24,12 @@ pub async fn mail_handler(
         .html_body("<h1>Hello, world!</h1>")
         .text_body("Hello world!");
 
-    let res = state.get_access_token().await?;
+    let res = state.get_signed_jwt().await;
     println!("Res {}\n", res);
 
-    test().await;
-    // Connect to the SMTP submissions port, upgrade to TLS and
-    // authenticate using the provided credentials.
     let mut sender = SmtpClientBuilder::new("smtp.gmail.com", 587)
         .implicit_tls(false)
-        .credentials(Credentials::XOauth2 { username: ("office@greenie.one"), secret: (res.as_str()) })
+        .credentials(Credentials::XOauth2 { username: "<office@greenie.one>", secret: res.as_str() })
         .connect()
         .await
         .unwrap();

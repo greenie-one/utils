@@ -6,7 +6,6 @@ use chrono::{Duration, Utc};
 use jwt::{Algorithm, EncodingKey, Header};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 use std::fs;
 
 use crate::Error;
@@ -171,28 +170,4 @@ impl TokenHandler {
     }
 }
 
-pub async fn test() {
-    // Read application secret from a file. Sometimes it's easier to compile it directly into
-    // the binary. The clientsecret file contains JSON like `{"installed":{"client_id": ... }}`
-    let secret = yup_oauth2::read_service_account_key(JSON_FILENAME)
-        .await.unwrap();
-
-    // Create an authenticator that uses an InstalledFlow to authenticate. The
-    // authentication tokens are persisted to a file named tokencache.json. The
-    // authenticator takes care of caching tokens to disk and refreshing tokens once
-    // they've expired.
-    let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::HTTPRedirect)
-    .persist_tokens_to_disk("tokencache.json")
-    .build()
-    .await
-    .unwrap();
-
-    let scopes = &[SCOPES];
-
-    // token(<scopes>) is the one important function of this crate; it does everything to
-    // obtain a token that can be sent e.g. as Bearer token.
-    match auth.token(scopes).await {
-        Ok(token) => println!("The token is {:?}", token),
-        Err(e) => println!("error: {:?}", e),
-    }
-}
+// https://github.com/dermesser/yup-oauth2/blob/master/examples/service_account_impersonation.rs
