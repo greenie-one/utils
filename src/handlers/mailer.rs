@@ -17,9 +17,8 @@ pub async fn mail_handler(
     println!("{:?}", payload);
     let _payload = &payload;
     let email = Message::builder()
-        .from("NoBody <nobody@domain.tld>".parse().unwrap())
-        .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
-        .to("Hei <hei@domain.tld>".parse().unwrap())
+        .from("Greenie <office@greenie.one>".parse().unwrap())
+        .to("Ratnesh <ratneshjain40@gmail.com>".parse().unwrap())
         .subject("Happy new year")
         .header(ContentType::TEXT_PLAIN)
         .body(String::from("Be happy!"))
@@ -32,6 +31,7 @@ pub async fn mail_handler(
             return Ok(Json(serde_json::json!({"message": "Email not sent"})));
         }
     };
+    println!("{:?}", res);
     let creds = Credentials::new("office@greenie.one".to_owned(), res.to_owned());
 
     // Open a remote connection to gmail

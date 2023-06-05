@@ -114,7 +114,7 @@ fn create_jwt_claims(client_secret: &ClientSecret, scope: String) -> Result<Clai
     Ok(Claims {
         iss: client_secret.client_email.clone(),
         scope,
-        aud: client_secret.token_uri.clone(),
+        aud: "https://accounts.google.com/o/oauth2/token".to_string(),
         exp: expiration_time,
         iat: issue_time,
     })
