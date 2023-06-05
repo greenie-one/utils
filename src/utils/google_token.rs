@@ -1,173 +1,141 @@
-use chrono;
-use jsonwebtoken as jwt;
-use reqwest;
-
-use chrono::{Duration, Utc};
-use jwt::{Algorithm, EncodingKey, Header};
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Error as IOError;
+use serde::{Deserialize, Serialize};
+use serde_json::{Error as JSONError};
+use std::time::{SystemTime, UNIX_EPOCH, SystemTimeError};
+use jsonwebtoken::{encode, Algorithm, Header, EncodingKey};
+use jsonwebtoken::errors::Error as JWTError;
+use reqwest::{Error as APIError};
 
-use crate::Error;
+#[derive(Debug)]
+pub enum Error {
+    IO(IOError),
+    JSON(JSONError),
+    SystemTime(SystemTimeError),
+    JWT(JWTError),
+    API(APIError),
+}
 
-// Service Account Credentials, Json format
-const JSON_FILENAME: &str =
-    "D:\\Projects\\Work\\Greenie\\communications\\keys\\local\\googleapi\\service-account-key.json";
-
-// Permissions to request for Access Token
-const SCOPES: &str = "https://www.googleapis.com/auth/gmail.send";
-
-// Set how long this token will be valid in seconds
-const EXPIRES_IN: i64 = 3600; // Expires in 1 hour
+#[derive(Debug, Deserialize, Clone)]
+pub struct ClientSecret {
+    #[serde(rename = "type")]
+    pub secret_type: String,
+    pub project_id: String,
+    pub private_key_id: String,
+    pub private_key: String,
+    pub client_email: String,
+    pub client_id: String,
+    pub auth_uri: String,
+    pub token_uri: String,
+    pub auth_provider_x509_cert_url: String,
+    pub client_x509_cert_url: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    iss: Option<String>,
-    sub: Option<String>,
-    aud: Option<String>,
-    iat: Option<u64>,
-    exp: Option<u64>,
-    scope: Option<String>,
+    iss: String,
+    scope: String,
+    aud: String,
+    exp: u64,
+    iat: u64,
 }
 
-impl Default for Claims {
-    fn default() -> Self {
-        Claims {
-            iss: None,
-            sub: None,
-            aud: None,
-            iat: None,
-            exp: None,
-            scope: None,
-        }
+#[derive(Debug, Deserialize)]
+pub struct APIResponse {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: u64,
+}
+
+impl From<IOError> for Error {
+    fn from(err: IOError) -> Error {
+        Error::IO(err)
     }
 }
 
-#[derive(Clone)]
+impl From<JSONError> for Error {
+    fn from(err: JSONError) -> Error {
+        Error::JSON(err)
+    }
+}
+
+impl From<SystemTimeError> for Error {
+    fn from(err: SystemTimeError) -> Error {
+        Error::SystemTime(err)
+    }
+}
+
+impl From<JWTError> for Error {
+    fn from(err: JWTError) -> Error {
+        Error::JWT(err)
+    }
+}
+
+impl From<APIError> for Error {
+    fn from(err: APIError) -> Error {
+        Error::API(err)
+    }
+}
+
+pub async fn get_access_token(client_secret: &ClientSecret, scope: String) -> Result<String, Error> {
+    let jwt = create_jwt_token(client_secret, scope)?;
+    let body = vec![
+        ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
+        ("assertion", &jwt),
+    ];
+    let response = reqwest::Client::new()
+        .post(client_secret.token_uri.as_str())
+        .form(&body)
+        .send()
+        .await?
+        .json::<APIResponse>()
+        .await?;
+    Ok(response.access_token)
+}
+
+pub fn read_secret_from_file(path: String) -> Result<ClientSecret, Error> {
+    let client_secret_json: String = fs::read_to_string(path)?;
+    let client_secret: ClientSecret = serde_json::from_str(&client_secret_json)?;
+    Ok(client_secret)
+}
+
+fn create_jwt_token(client_secret: &ClientSecret, scope: String) -> Result<String, Error> {
+    let claims = create_jwt_claims(client_secret, scope)?;
+    let encoding_key = EncodingKey::from_rsa_pem(client_secret.private_key.as_bytes())?;
+    let token = encode(&Header::new(Algorithm::RS256), &claims, &encoding_key)?;
+    Ok(token)
+}
+
+fn create_jwt_claims(client_secret: &ClientSecret, scope: String) -> Result<Claims, Error> {
+    let issue_time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)?.as_secs();
+    let expiration_time = issue_time + 3600;
+
+    Ok(Claims {
+        iss: client_secret.client_email.clone(),
+        scope,
+        aud: client_secret.token_uri.clone(),
+        exp: expiration_time,
+        iat: issue_time,
+    })
+}
+
+#[derive(Debug, Clone)]
 pub struct TokenHandler {
-    creds: serde_json::Value,
+    client_secret: ClientSecret,
+    scope: String,
 }
 
 impl TokenHandler {
-    pub fn new() -> Self {
-        let json_filename = JSON_FILENAME;
-        let creds = TokenHandler::load_json_credentials(&json_filename);
-        TokenHandler {
-            creds,
-        }
+    pub fn new(path: String, scope: String) -> Result<TokenHandler, Error> {
+        let client_secret = read_secret_from_file(path)?;
+        Ok(TokenHandler {
+            client_secret,
+            scope,
+        })
     }
-}
 
-impl TokenHandler {
-    fn load_json_credentials(filename: &str) -> serde_json::Value {
-        let data = fs::read_to_string(filename).expect("Failed to read file");
-        serde_json::from_str(&data).expect("Failed to parse JSON")
-    }
-    
-    fn load_private_key(json_cred: &serde_json::Value) -> String {
-        json_cred["private_key"].as_str().to_owned().unwrap().into()
-    }
-    
-    fn create_signed_jwt(pkey: &str, pkey_id: &str, email: &str, scope: &str) -> String {
-        let now = Utc::now();
-        let expires = now + Duration::seconds(EXPIRES_IN);
-    
-        let header = Header {
-            kid: Some(pkey_id.to_owned()),
-            alg: Algorithm::RS256,
-            typ: Some("JWT".to_owned()),
-            ..Default::default()
-        };
-    
-        let claims = Claims {
-            iss: Some(email.to_owned()),
-            sub: Some(email.to_owned()),
-            aud: Some("https://oauth2.googleapis.com/token".to_owned()),
-            iat: Some(now.timestamp() as u64),
-            exp: Some(expires.timestamp() as u64),
-            scope: Some(scope.to_owned()),
-        };
-    
-        let key = EncodingKey::from_rsa_pem(pkey.as_ref()).unwrap();
-        jwt::encode(&header, &claims, &key).unwrap()
-    }
-    
-    async fn exchange_jwt_for_access_token(signed_jwt: &str) -> Result<String, String> {
-        let auth_url = "https://oauth2.googleapis.com/token";
-    
-        let client = Client::new();
-        let params = [
-            ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
-            ("assertion", signed_jwt),
-        ];
-    
-        let res = client
-            .post(auth_url)
-            .form(&params)
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
-    
-        if res.status().is_success() {
-            let body = res
-                .text()
-                .await
-                .map_err(|e| format!("Failed to read response body: {}", e))?;
-            let json: serde_json::Value =
-                serde_json::from_str(&body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-
-            println!("json: {:?}\n", json);
-    
-            if let Some(access_token) = json["access_token"].as_str() {
-                Ok(access_token.to_owned())
-            } else {
-                Err("Access token not found in response".to_owned())
-            }
-        } else {
-            let body = res
-                .text()
-                .await
-                .map_err(|e| format!("Failed to read response body: {}", e))?;
-            Err(body.into())
-        }
-    }
-}
-
-impl TokenHandler {
     pub async fn get_access_token(&self) -> Result<String, Error> {
-        let cred = &self.creds;
-        let private_key = TokenHandler::load_private_key(&cred);
-        let s_jwt = TokenHandler::create_signed_jwt(
-            private_key.as_str(),
-            &cred["private_key_id"].as_str().unwrap(),
-            &cred["client_email"].as_str().unwrap(),
-            SCOPES,
-        );
-    
-        match TokenHandler::exchange_jwt_for_access_token(&s_jwt).await {
-            Ok(token) => {
-                println!("Access Token: {}\n", token);
-                Ok(token)
-            }
-            Err(err) => {
-                println!("Error: {}", err);
-                Err(Error::GoogleAccessTokenError)
-            }
-        }
-    }
-    
-    pub async fn get_signed_jwt(&self) -> String {
-        let cred = &self.creds;
-        let private_key = TokenHandler::load_private_key(&cred);
-        let s_jwt = TokenHandler::create_signed_jwt(
-            private_key.as_str(),
-            &cred["private_key_id"].as_str().unwrap(),
-            &cred["client_email"].as_str().unwrap(),
-            SCOPES,
-        );
-    
-        s_jwt
+        get_access_token(&self.client_secret, self.scope.clone()).await
     }
 }
-
-// https://github.com/dermesser/yup-oauth2/blob/master/examples/service_account_impersonation.rs

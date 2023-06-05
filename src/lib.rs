@@ -7,7 +7,6 @@ use dotenv::dotenv;
 
 mod errors;
 pub use errors::{Error, Result};
-
 pub mod routes;
 pub mod handlers;
 pub mod dtos;
