@@ -76,8 +76,6 @@ jobs:
 
       - name: Build utils module
         uses: actions-rs/cargo@v1
-        env:
-          PKG_CONFIG_SYSROOT_DIR: /
         with:
           command: build
           args: --release --target=x86_64-unknown-linux-musl
