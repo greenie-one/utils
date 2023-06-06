@@ -1,6 +1,6 @@
 use axum::Router;
 
-use crate::{handlers::mailer::mail_handler, utils::google_token::TokenHandler};
+use crate::{handlers::mailer::mail_handler, state::google_token::TokenHandler};
 
 pub fn routes() -> Router {
     let state = TokenHandler::new("D:\\Projects\\Work\\Greenie\\utils\\keys\\local\\googleapi\\service-account-key.json".to_string(), "https://mail.google.com/".to_string()).unwrap();

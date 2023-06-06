@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 
-axum = "0.6"
+axum = { version = "0.6", features = ["multipart", "headers"] }
 serde = { version = "1.0", features = ["derive"] }
 mongodb = "2.5.0"
 serde_json = "1.0"
@@ -14,8 +14,9 @@ dotenv = "0.15.0"
 mail-send = "0.4.0"
 chrono = "0.4"
 jsonwebtoken = "8.0.0"
-reqwest = "0.11.1"
+reqwest = { version = "0.11.0", features = ["blocking", "json"] }
 lettre = "0.10.0"
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 anyhow = "1"

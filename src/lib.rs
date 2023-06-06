@@ -3,7 +3,6 @@ use axum::{
     Router,
 };
 use std::net::SocketAddr;
-use dotenv::dotenv;
 
 mod errors;
 pub use errors::{Error, Result};
@@ -11,12 +10,12 @@ pub mod routes;
 pub mod handlers;
 pub mod dtos;
 pub mod services;
-pub mod db;
 pub mod models;
-pub mod utils;
+pub mod state;
+pub mod env_config;
 
 pub async fn build_run() {
-    dotenv().ok();
+    env_config::load_env();
 
     // let db_client = db::Database::get_client().await.unwrap();
 
