@@ -14,7 +14,7 @@ dotenv = "0.15.0"
 mail-send = "0.4.0"
 chrono = "0.4"
 jsonwebtoken = "8.0.0"
-reqwest = "0.11.1"
+reqwest = { version = "0.11.18", features = ["default", "json"] }
 lettre = "0.10.0"
 
 [dev-dependencies]
