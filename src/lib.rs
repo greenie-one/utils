@@ -10,7 +10,6 @@ pub mod routes;
 pub mod handlers;
 pub mod dtos;
 pub mod services;
-pub mod models;
 pub mod state;
 pub mod env_config;
 
