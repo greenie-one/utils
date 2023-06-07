@@ -1,11 +1,11 @@
+use jsonwebtoken::errors::Error as JWTError;
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use reqwest::Error as APIError;
+use serde::{Deserialize, Serialize};
+use serde_json::Error as JSONError;
 use std::fs;
 use std::io::Error as IOError;
-use serde::{Deserialize, Serialize};
-use serde_json::{Error as JSONError};
-use std::time::{SystemTime, UNIX_EPOCH, SystemTimeError};
-use jsonwebtoken::{encode, Algorithm, Header, EncodingKey};
-use jsonwebtoken::errors::Error as JWTError;
-use reqwest::{Error as APIError};
+use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub enum Error {
@@ -77,7 +77,10 @@ impl From<APIError> for Error {
     }
 }
 
-pub async fn get_access_token(client_secret: &ClientSecret, scope: String) -> Result<String, Error> {
+pub async fn get_access_token(
+    client_secret: &ClientSecret,
+    scope: String,
+) -> Result<String, Error> {
     let jwt = create_jwt_token(client_secret, scope)?;
     let body = vec![
         ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
@@ -107,14 +110,13 @@ fn create_jwt_token(client_secret: &ClientSecret, scope: String) -> Result<Strin
 }
 
 fn create_jwt_claims(client_secret: &ClientSecret, scope: String) -> Result<Claims, Error> {
-    let issue_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)?.as_secs();
+    let issue_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let expiration_time = issue_time + 3600;
 
     Ok(Claims {
         iss: client_secret.client_email.clone(),
         scope,
-        aud: client_secret.token_uri.clone(),
+        aud: "https://accounts.google.com/o/oauth2/token".to_string(),
         exp: expiration_time,
         iat: issue_time,
     })
@@ -138,4 +140,8 @@ impl TokenHandler {
     pub async fn get_access_token(&self) -> Result<String, Error> {
         get_access_token(&self.client_secret, self.scope.clone()).await
     }
+}
+
+pub struct Client {
+    pub token_handler: TokenHandler,
 }
