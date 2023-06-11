@@ -16,8 +16,12 @@ chrono = "0.4"
 jsonwebtoken = "8.0.0"
 reqwest = { version = "0.11.0", features = ["blocking", "json"] }
 lettre = "0.10.0"
-lazy_static = "1.4.0"
 openssl = { version = "0.10.54", features = ["vendored"] }
+azure_storage_blobs = "0.12.0"
+azure_storage = "0.12.0"
+azure_core = "0.12.0"
+lazy_static = "1.4.0"
+async-trait = "0.1.68"
 
 [dev-dependencies]
 anyhow = "1"

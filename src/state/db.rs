@@ -11,7 +11,6 @@ impl Database {
         client_options.max_pool_size = config.max_pool_size;
 
         let client = Client::with_options(client_options)?;
-
         Ok(client)
     }
 }
