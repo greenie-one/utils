@@ -1,4 +1,7 @@
-use axum::{response::{IntoResponse, Response}, extract::multipart::MultipartError};
+use axum::{
+    extract::multipart::MultipartError,
+    response::{IntoResponse, Response},
+};
 use serde_json::json;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -6,13 +9,34 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     Unauthorized,
+
     MailError,
+
+    PayloadTooLarge,
+    InvalidFileName,
+    InvalidContentType,
+
     InternalServerError(String),
 }
 
 impl From<MultipartError> for Error {
     fn from(value: MultipartError) -> Self {
-        Error::InternalServerError(format!("MultipartError: {:?}", value))
+        let status_code = value.status();
+        match status_code {
+            axum::http::StatusCode::PAYLOAD_TOO_LARGE => return Error::PayloadTooLarge,
+            _ => {
+                return Error::InternalServerError(format!(
+                    "MultipartError: {:?}",
+                    value.body_text()
+                ))
+            }
+        }
+    }
+}
+
+impl From<azure_core::Error> for Error {
+    fn from(value: azure_core::Error) -> Self {
+        Error::InternalServerError(format!("Azure Core Error: {:?}", value))
     }
 }
 
@@ -35,6 +59,22 @@ impl IntoResponse for Error {
                 message: value,
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 code: "GR103",
+            }
+            .into_response(),
+            Error::PayloadTooLarge => ErrorMessages {
+                message: "Payload too large".to_string(),
+                status_code: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+                code: "GR104",
+            }.into_response(),
+            Error::InvalidFileName => ErrorMessages {
+                message: "File name error".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR105",
+            }.into_response(),
+            Error::InvalidContentType => ErrorMessages {
+                message: "Content type error".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR106",
             }.into_response(),
         }
     }
