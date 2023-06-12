@@ -1,7 +1,7 @@
 use crate::{errors::Result, Error};
 use axum::extract::multipart::Field;
+use azure_core::Url;
 use azure_storage_blobs::prelude::{BlobBlockType, BlockList, ContainerClient};
-use reqwest::Url;
 
 pub struct File<'a> {
     pub name: String,

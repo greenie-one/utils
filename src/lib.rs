@@ -19,7 +19,7 @@ pub async fn build_run() {
 
     // let db_client = db::Database::get_client().await.unwrap();
     let pf_routes = routes::profile_picture::routes().await;
-    let app= Router::new().merge(routes::mailer::routes()).merge(pf_routes)
+    let app= Router::new().merge(pf_routes)
         .route("/health-check", get(|| async { "All Ok!" }));
 
     // let app = app.with_state(db_client);
