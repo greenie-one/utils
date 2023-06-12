@@ -8,16 +8,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
+    // Predefined errors
     Unauthorized,
+    ProfileNotFound,
 
-    MailError,
-
+    // File handling errors
     PayloadTooLarge,
     InvalidFileName,
     InvalidContentType,
 
+    // MongoDB errors
     InvlaidId(String),
-    ProfileNotFound,
 
     InternalServerError(String),
 }
@@ -53,55 +54,55 @@ impl From<mongodb::error::Error> for Error {
         Error::InternalServerError(format!("MongoDB Error: {:?}", value))
     }
 }
-    
+
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
+            // Predefined errors
             Error::Unauthorized => ErrorMessages {
                 message: "Unauthorized".to_string(),
                 status_code: axum::http::StatusCode::UNAUTHORIZED,
-                code: "GR001",
+                code: "GR0001",
             }
             .into_response(),
-            Error::MailError => ErrorMessages {
-                message: "Mail Error".to_string(),
-                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                code: "GR102",
+            Error::ProfileNotFound => ErrorMessages {
+                message: "Profile not found".to_string(),
+                status_code: axum::http::StatusCode::NOT_FOUND,
+                code: "GR0009",
             }
             .into_response(),
+
+            // New errors
             Error::InternalServerError(value) => ErrorMessages {
                 message: value,
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                code: "GR103",
+                code: "GR1002",
             }
             .into_response(),
             Error::PayloadTooLarge => ErrorMessages {
                 message: "Payload too large".to_string(),
                 status_code: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
-                code: "GR104",
+                code: "GR1003",
             }
             .into_response(),
             Error::InvalidFileName => ErrorMessages {
                 message: "File name error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
-                code: "GR105",
+                code: "GR1004",
             }
             .into_response(),
             Error::InvalidContentType => ErrorMessages {
                 message: "Content type error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
-                code: "GR106",
-            }.into_response(),
+                code: "GR1005",
+            }
+            .into_response(),
             Error::InvlaidId(value) => ErrorMessages {
                 message: value,
                 status_code: axum::http::StatusCode::BAD_REQUEST,
-                code: "GR107",
-            }.into_response(),
-            Error::ProfileNotFound => ErrorMessages {
-                message: "Profile not found".to_string(),
-                status_code: axum::http::StatusCode::NOT_FOUND,
-                code: "GR108",
-            }.into_response(),
+                code: "GR1006",
+            }
+            .into_response(),
         }
     }
 }
