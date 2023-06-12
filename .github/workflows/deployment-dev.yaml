@@ -81,6 +81,12 @@ jobs:
         with:
           toolchain: stable
       - run: cargo add openssl -F vendored
+
+      - name: Build utils module
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target=x86_64-unknown-linux-musl
           
       - name: Build and push Docker image
         uses: docker/build-push-action@v4.0.0
