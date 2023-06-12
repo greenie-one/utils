@@ -74,13 +74,12 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Openssl
+    
+      - name: Add openssl vendor
         uses: actions-rs/cargo@v1
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-      - run: cargo add openssl -F vendored
+          command: add
+          args: openssl -F vendored
 
       - name: Build utils module
         uses: actions-rs/cargo@v1
