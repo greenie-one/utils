@@ -16,6 +16,9 @@ pub enum Error {
     InvalidFileName,
     InvalidContentType,
 
+    InvlaidId(String),
+    ProfileNotFound,
+
     InternalServerError(String),
 }
 
@@ -40,6 +43,18 @@ impl From<azure_core::Error> for Error {
     }
 }
 
+impl From<mongodb::bson::oid::Error> for Error {
+    fn from(value: mongodb::bson::oid::Error) -> Self {
+        Error::InvlaidId(format!("MongoDB Error: {:?}", value))
+    }
+}
+
+impl From<mongodb::error::Error> for Error {
+    fn from(value: mongodb::error::Error) -> Self {
+        Error::InternalServerError(format!("MongoDB Error: {:?}", value))
+    }
+}
+    
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
@@ -75,6 +90,16 @@ impl IntoResponse for Error {
                 message: "Content type error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GR106",
+            }.into_response(),
+            Error::InvlaidId(value) => ErrorMessages {
+                message: value,
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR107",
+            }.into_response(),
+            Error::ProfileNotFound => ErrorMessages {
+                message: "Profile not found".to_string(),
+                status_code: axum::http::StatusCode::NOT_FOUND,
+                code: "GR108",
             }.into_response(),
         }
     }

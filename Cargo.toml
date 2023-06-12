@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 
-axum = { version = "0.6", features = ["multipart", "headers"] }
+axum = { version = "0.6.18", features = ["multipart", "headers", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
 mongodb = "2.5.0"
 serde_json = "1.0"
