@@ -10,5 +10,6 @@ pub fn routes() -> Router {
     let x = x.to_string();
     let state = TokenHandler::new(x.to_string(), "https://mail.google.com/".to_string()).unwrap();
     axum::Router::new()
-        .route("/mailer/send_mail", axum::routing::post(mail_handler)).with_state(state)
+        .route("/mailer/send_mail", axum::routing::post(mail_handler))
+        .with_state(state)
 }

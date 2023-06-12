@@ -1,4 +1,3 @@
-use axum::extract::multipart::Field;
 use azure_storage_blobs::prelude::ContainerClient;
 use mongodb::bson::oid::ObjectId;
 use mongodb::bson::{doc, Document};
@@ -7,12 +6,12 @@ use mongodb::{Client, Collection};
 use crate::dtos::token_claims::TokenClaims;
 use crate::errors::Result;
 
-use super::file_handling::upload_file_chunked;
+use super::file_handling::{upload_file_chunked, File};
 
 pub async fn set_profile_picture<'a>(
     user_details: TokenClaims,
     db: Client,
-    file: Field<'a>,
+    file: File<'a>,
     container_client: ContainerClient,
 ) -> Result<()> {
     let db_name = std::env::var("MONGO_DB_NAME").unwrap();

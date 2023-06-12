@@ -42,7 +42,6 @@ impl From<azure_core::Error> for Error {
         Error::InternalServerError(format!("Azure Core Error: {:?}", value))
     }
 }
-
 impl From<mongodb::bson::oid::Error> for Error {
     fn from(value: mongodb::bson::oid::Error) -> Self {
         Error::InvlaidId(format!("MongoDB Error: {:?}", value))
@@ -80,12 +79,14 @@ impl IntoResponse for Error {
                 message: "Payload too large".to_string(),
                 status_code: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
                 code: "GR104",
-            }.into_response(),
+            }
+            .into_response(),
             Error::InvalidFileName => ErrorMessages {
                 message: "File name error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GR105",
-            }.into_response(),
+            }
+            .into_response(),
             Error::InvalidContentType => ErrorMessages {
                 message: "Content type error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,

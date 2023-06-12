@@ -1,8 +1,14 @@
-use axum::{Router, extract::DefaultBodyLimit};
+use axum::{extract::DefaultBodyLimit, Router};
 use azure_storage_blobs::prelude::ContainerClient;
 use mongodb::Client;
 
-use crate::{handlers::profile_picture::upload, state::{db::Database, blob_storage::{self, ContainerType}}};
+use crate::{
+    handlers::profile_picture::upload,
+    state::{
+        blob_storage::{self, ContainerType},
+        db::Database,
+    },
+};
 
 const MAX_SIZE: usize = 4 * 1024 * 1024; // max payload size is 4MB
 
@@ -22,5 +28,7 @@ pub async fn routes() -> Router {
     };
     println!("Mapping profile picture routes");
     axum::Router::new()
-        .route("/profile/upload", axum::routing::post(upload)).with_state(state).layer(DefaultBodyLimit::max(MAX_SIZE))
+        .route("/profile/upload", axum::routing::post(upload))
+        .with_state(state)
+        .layer(DefaultBodyLimit::max(MAX_SIZE))
 }

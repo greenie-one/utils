@@ -3,26 +3,24 @@ use axum::extract::multipart::Field;
 use azure_storage_blobs::prelude::{BlobBlockType, BlockList, ContainerClient};
 use reqwest::Url;
 
+pub struct File<'a> {
+    pub name: String,
+    pub content_type: String,
+    pub field: Field<'a>,
+}
+
 pub async fn upload_file_chunked<'a>(
-    mut file: Field<'a>,
+    mut file: File<'a>,
     container_client: ContainerClient,
 ) -> Result<Url> {
-    let file_name = file
-        .file_name()
-        .ok_or_else(|| Error::InvalidFileName)?
-        .to_string();
-    let content_type = file
-        .content_type()
-        .ok_or_else(|| Error::InvalidContentType)?
-        .to_string();
-    println!("Uploading {} {}", file_name, content_type);
+    let file_name = file.name;
+    let content_type = file.content_type;
 
     let blob_client = container_client.blob_client(file_name.as_str());
     let mut blocks = BlockList { blocks: Vec::new() };
 
     let mut chunk_id = 0;
-    while let Some(chunk) = file.chunk().await? {
-        println!("Uploading chunk {}", chunk.len());
+    while let Some(chunk) = file.field.chunk().await? {
         let block_id = format!("{}{:03}", file_name, chunk_id);
         blob_client.put_block(block_id.clone(), chunk).await?;
         blocks.blocks.push(BlobBlockType::new_latest(block_id));
@@ -37,20 +35,19 @@ pub async fn upload_file_chunked<'a>(
     Ok(blob_client.url()?)
 }
 
-pub async fn upload_file<'a>(file: Field<'a>, container_client: ContainerClient) -> Result<Url> {
-    let file_name = file.name().unwrap().to_string();
-    let content_type = file.content_type().unwrap().to_string();
-    println!("Uploading {} {}", file_name, content_type);
+pub async fn upload_file<'a>(file: File<'a>, container_client: ContainerClient) -> Result<Url> {
+    let file_name = file.name;
+    let content_type = file.content_type;
 
     let blob_client = container_client.blob_client(file_name);
     blob_client
-        .put_block_blob(file.bytes().await?)
+        .put_block_blob(file.field.bytes().await?)
         .content_type(content_type)
         .await?;
     Ok(blob_client.url()?)
 }
 
-pub async fn validate_image_field(field: Field<'_>, field_name: String) -> Result<Field> {
+pub async fn validate_image_field(field: Field<'_>, field_name: String) -> Result<File> {
     let file_name = field.file_name().ok_or_else(|| Error::InvalidFileName)?;
     let content_type = field
         .content_type()
@@ -75,5 +72,9 @@ pub async fn validate_image_field(field: Field<'_>, field_name: String) -> Resul
         return Err(Error::InvalidFileName);
     }
 
-    Ok(field)
+    Ok(File {
+        name: file_name.to_string(),
+        content_type: content_type.to_string(),
+        field,
+    })
 }

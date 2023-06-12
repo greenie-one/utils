@@ -1,0 +1,8 @@
+/target
+!/target/release/utils
+!/target/x86_64-unknown-linux-musl/release/utils
+/templates
+/.github
+/.vscode
+/.keys
+Dockerfile
