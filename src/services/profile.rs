@@ -27,7 +27,7 @@ pub async fn set_profile_picture<'a>(
             profile,
             doc! {
                 "$set": {
-                    "profile_picture": url.as_str()
+                    "profilePicture": url.as_str()
                 }
             },
             None,
