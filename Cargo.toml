@@ -6,17 +6,11 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 
-axum = { version = "0.6", features = ["multipart", "headers"] }
+axum = { version = "0.6.18", features = ["multipart", "headers", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
 mongodb = "2.5.0"
 serde_json = "1.0"
 dotenv = "0.15.0"
-mail-send = "0.4.0"
-chrono = "0.4"
-jsonwebtoken = "8.0.0"
-reqwest = { version = "0.11.0", features = ["blocking", "json"] }
-lettre = "0.10.0"
-openssl = { version = "0.10.54", features = ["vendored"] }
 azure_storage_blobs = "0.12.0"
 azure_storage = "0.12.0"
 azure_core = "0.12.0"
