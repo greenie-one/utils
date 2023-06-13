@@ -4,15 +4,14 @@ use axum::{
 };
 use std::net::SocketAddr;
 
-mod errors;
-pub use errors::{Error, Result};
-
+pub mod errors;
 pub mod routes;
 pub mod handlers;
 pub mod dtos;
 pub mod services;
 pub mod state;
 pub mod env_config;
+pub mod middleware;
 
 pub async fn build_run() {
     env_config::load_env();

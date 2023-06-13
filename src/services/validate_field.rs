@@ -1,4 +1,4 @@
-use crate::{dtos::token_claims::TokenClaims, errors::Result, Error};
+use crate::{dtos::token_claims::TokenClaims, errors::{Result, Error}};
 
 use super::file_handling::File;
 use axum::extract::multipart::Field;
@@ -20,7 +20,7 @@ pub fn validate_image_field<'a>(field: Field<'a>, user_details: &TokenClaims) ->
 
     let file_extension = file_name.split('.').last().unwrap();
     let file_name = format!("{}.{}", user_details.sub, file_extension);
-    
+
     Ok(File {
         name: file_name.to_string(),
         content_type: content_type.to_string(),
