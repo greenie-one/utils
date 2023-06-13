@@ -18,7 +18,6 @@ pub async fn set_profile_picture<'a>(
     let mut collection: Collection<Document> = db.database(db_name.as_str()).collection("profiles");
 
     let profile = get_profile(user_details, &mut collection).await?;
-
     let url = upload_file_chunked(file, container_client).await?;
 
     collection

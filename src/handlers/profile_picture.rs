@@ -1,8 +1,8 @@
 use crate::dtos::token_claims::TokenClaims;
 use crate::errors::Result;
 use crate::routes::profile_picture::AppState;
-use crate::services::file_handling::validate_image_field;
 use crate::services::profile::{set_profile_picture, remove_profile_picture};
+use crate::services::validate_field::validate_image_field;
 use axum::extract::Multipart;
 use axum::{extract::State, Json};
 
@@ -15,8 +15,8 @@ pub async fn upload(
 ) -> Result<Json<Value>> {
     println!("User details: {:?}", user_details);
 
-    let file = multipart.next_field().await.unwrap().unwrap();
-    let file = validate_image_field(file).await?;
+    let field = multipart.next_field().await.unwrap().unwrap();
+    let file = validate_image_field(field, &user_details)?;
     set_profile_picture(user_details, state.db, file, state.container_client).await?;
 
     Ok(Json(json!({

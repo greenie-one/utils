@@ -1,4 +1,4 @@
-use crate::{errors::Result, Error};
+use crate::{errors::Result};
 use axum::extract::multipart::Field;
 use azure_core::Url;
 use azure_storage_blobs::prelude::{BlobBlockType, BlockList, ContainerClient};
@@ -51,26 +51,4 @@ pub async fn delete_file(file_name: &str, container_client: ContainerClient) -> 
     let blob_client = container_client.blob_client(file_name);
     blob_client.delete().await?;
     Ok(())
-}
-
-pub async fn validate_image_field(field: Field<'_>) -> Result<File> {
-    let file_name = field.file_name().ok_or_else(|| Error::InvalidFileName)?;
-    let content_type = field
-        .content_type()
-        .ok_or_else(|| Error::InvalidContentType)?;
-
-    if !content_type.starts_with("image/") {
-        return Err(Error::InvalidContentType);
-    }
-
-    if !file_name.ends_with(".jpg") && !file_name.ends_with(".jpeg") && !file_name.ends_with(".png")
-    {
-        return Err(Error::InvalidFileName);
-    }
-
-    Ok(File {
-        name: file_name.to_string(),
-        content_type: content_type.to_string(),
-        field,
-    })
 }
