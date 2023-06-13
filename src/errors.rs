@@ -16,6 +16,7 @@ pub enum Error {
     PayloadTooLarge,
     InvalidFileName,
     InvalidContentType,
+    InvalidFormKey,
 
     // MongoDB errors
     InvlaidId(String),
@@ -101,6 +102,12 @@ impl IntoResponse for Error {
                 message: value,
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GR1006",
+            }
+            .into_response(),
+            Error::InvalidFormKey => ErrorMessages {
+                message: "Invalid form key".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR1007",
             }
             .into_response(),
         }
