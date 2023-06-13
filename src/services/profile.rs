@@ -13,7 +13,7 @@ pub async fn set_profile_picture<'a>(
     db: Client,
     file: File<'a>,
     container_client: ContainerClient,
-) -> Result<()> {
+) -> Result<String> {
     let db_name = std::env::var("MONGO_DB_NAME").unwrap();
     let mut collection: Collection<Document> = db.database(db_name.as_str()).collection("profiles");
 
@@ -32,7 +32,7 @@ pub async fn set_profile_picture<'a>(
         )
         .await?;
 
-    Ok(())
+    Ok(url.to_string())
 }
 
 pub async fn get_profile(

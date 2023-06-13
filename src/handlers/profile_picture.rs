@@ -17,10 +17,11 @@ pub async fn upload(
 
     let field = multipart.next_field().await.unwrap().unwrap();
     let file = validate_image_field(field, &user_details)?;
-    set_profile_picture(user_details, state.db, file, state.container_client).await?;
+    let url = set_profile_picture(user_details, state.db, file, state.container_client).await?;
 
     Ok(Json(json!({
-        "message": "File uploaded successfully"
+        "message": "File uploaded successfully",
+        "url": url
     })))
 }
 
