@@ -3,7 +3,7 @@ use azure_storage_blobs::prelude::ContainerClient;
 use mongodb::Client;
 
 use crate::{
-    handlers::profile_picture::upload,
+    handlers::profile_picture::{upload, delete},
     state::{
         blob_storage::{self, ContainerType},
         db::Database,
@@ -28,7 +28,7 @@ pub async fn routes() -> Router {
     };
     println!("Mapping profile picture routes");
     axum::Router::new()
-        .route("/profile/upload", axum::routing::post(upload))
+        .route("/profile_pic", axum::routing::post(upload)).route("/profile_pic", axum::routing::delete(delete))
         .with_state(state)
         .layer(DefaultBodyLimit::max(MAX_SIZE))
 }
