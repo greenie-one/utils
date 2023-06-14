@@ -1,25 +1,26 @@
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 use std::net::SocketAddr;
 
-pub mod errors;
-pub mod routes;
-pub mod handlers;
 pub mod dtos;
+pub mod env_config;
+pub mod errors;
+pub mod handlers;
+pub mod middleware;
+pub mod routes;
 pub mod services;
 pub mod state;
-pub mod env_config;
-pub mod middleware;
+
+use middleware as mw;
 
 pub async fn build_run() {
     env_config::load_env();
 
     // let db_client = db::Database::get_client().await.unwrap();
     let pf_routes = routes::profile_picture::routes().await;
-    let app= Router::new().merge(pf_routes)
-        .route("/health-check", get(|| async { "All Ok!" }));
+    let app = Router::new()
+        .merge(pf_routes)
+        .route("/health-check", get(|| async { "All Ok!" }))
+        .layer(axum::middleware::from_fn(mw::logger::request_logger));
 
     // let app = app.with_state(db_client);
 

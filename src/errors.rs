@@ -44,17 +44,6 @@ impl From<azure_core::Error> for Error {
         Error::InternalServerError(format!("Azure Core Error: {:?}", value))
     }
 }
-impl From<mongodb::bson::oid::Error> for Error {
-    fn from(value: mongodb::bson::oid::Error) -> Self {
-        Error::InvlaidId(format!("MongoDB Error: {:?}", value))
-    }
-}
-
-impl From<mongodb::error::Error> for Error {
-    fn from(value: mongodb::error::Error) -> Self {
-        Error::InternalServerError(format!("MongoDB Error: {:?}", value))
-    }
-}
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {

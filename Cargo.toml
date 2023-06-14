@@ -8,7 +8,6 @@ tokio = { version = "1", features = ["full"] }
 
 axum = { version = "0.6.18", features = ["multipart", "headers", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
-mongodb = "2.5.0"
 serde_json = "1.0"
 dotenv = "0.15.0"
 azure_storage_blobs = "0.12.0"
