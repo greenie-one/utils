@@ -1,5 +1,6 @@
 use axum::{extract::DefaultBodyLimit, Router};
 use azure_storage_blobs::prelude::ContainerClient;
+use tracing::info;
 
 use crate::{
     handlers::profile_picture::{upload},
@@ -21,7 +22,7 @@ pub async fn routes() -> Router {
     let state = AppState {
         container_client: blob_storage,
     };
-    println!("Mapping profile picture routes");
+    info!("Mapping profile picture routes - POST /profile_pic");
     axum::Router::new()
         .route("/profile_pic", axum::routing::post(upload))
         .with_state(state)
