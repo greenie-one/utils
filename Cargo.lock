@@ -2418,7 +2418,6 @@ dependencies = [
  "dotenv",
  "httpc-test",
  "lazy_static",
- "log",
  "mongodb",
  "serde",
  "serde_json",
