@@ -2,15 +2,39 @@ use crate::errors::Result;
 use axum::extract::multipart::Field;
 use azure_core::Url;
 use azure_storage::{
-    prelude::BlobSasPermissions, shared_access_signature::service_sas::BlobSharedAccessSignature,
+    prelude::BlobSasPermissions, shared_access_signature::{service_sas::BlobSharedAccessSignature},
 };
 use azure_storage_blobs::prelude::{BlobBlockType, BlockList, ContainerClient};
 use time::OffsetDateTime;
+
+use azure_storage::StorageCredentials;
+use azure_storage_blobs::prelude::{ClientBuilder};
 
 pub struct File<'a> {
     pub name: String,
     pub content_type: String,
     pub field: Field<'a>,
+}
+
+fn get_storage_account_key() -> StorageCredentials {
+    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
+    let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
+
+    StorageCredentials::Key(account.clone(), access_key)
+}
+
+pub fn get_container_client(container_name: String) -> ContainerClient {
+    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
+    let storage_credentials = get_storage_account_key();
+
+    ClientBuilder::new(account, storage_credentials).container_client(container_name)
+}
+
+pub fn get_container_client_from_sas(container_name: String, sas_token: String) -> ContainerClient {
+    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
+    let storage_credentials = StorageCredentials::sas_token(sas_token).unwrap();
+
+    ClientBuilder::new(account, storage_credentials).container_client(container_name)
 }
 
 pub async fn upload_file_chunked<'a>(
@@ -52,7 +76,7 @@ pub async fn upload_file<'a>(file: File<'a>, container_client: ContainerClient) 
 }
 
 pub fn get_blob_sas(
-    container_client: ContainerClient,
+    container_client: &mut ContainerClient,
     file_name: &str,
     expiry_in_mins: i64,
 ) -> Result<BlobSharedAccessSignature> {
@@ -61,8 +85,6 @@ pub fn get_blob_sas(
     let sas = blob_client.shared_access_signature(
         BlobSasPermissions {
             read: true,
-            write: true,
-            delete: true,
             ..BlobSasPermissions::default()
         },
         expiry,
@@ -70,6 +92,23 @@ pub fn get_blob_sas(
 
     Ok(sas)
 }
+
+pub fn get_container_sas(
+    container_client: &mut ContainerClient,
+    expiry_in_mins: i64,
+) -> Result<BlobSharedAccessSignature> {
+    let expiry = OffsetDateTime::now_utc() + time::Duration::minutes(expiry_in_mins);
+    let sas = container_client.shared_access_signature(
+        BlobSasPermissions {
+            read: true,
+            ..BlobSasPermissions::default()
+        },
+        expiry,
+    )?;
+
+    Ok(sas)
+}
+
 pub async fn delete_file(file_name: &str, container_client: ContainerClient) -> Result<()> {
     let blob_client = container_client.blob_client(file_name);
     blob_client.delete().await?;

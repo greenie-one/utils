@@ -27,3 +27,24 @@ pub fn validate_image_field<'a>(field: Field<'a>, user_details: &TokenClaims) ->
         field,
     })
 }
+
+pub fn validate_pdf_field(field: Field) -> Result<File> {
+    let file_name = field.file_name().ok_or_else(|| Error::InvalidFileName)?;
+    let content_type = field
+        .content_type()
+        .ok_or_else(|| Error::InvalidContentType)?;
+
+    if !content_type.starts_with("application/pdf") {
+        return Err(Error::InvalidContentType);
+    }
+
+    if !file_name.ends_with(".pdf") {
+        return Err(Error::InavlidFileExtension);
+    }
+
+    Ok(File {
+        name: file_name.to_string(),
+        content_type: content_type.to_string(),
+        field,
+    })
+}

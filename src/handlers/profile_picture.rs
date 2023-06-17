@@ -1,7 +1,8 @@
 use crate::dtos::token_claims::TokenClaims;
 use crate::errors::Result;
-use crate::services::profile::{set_profile_picture, remove_profile_picture};
+use crate::services::file_handling::upload_file_chunked;
 use crate::services::validate_field::validate_image_field;
+use crate::state::app_state::AppState;
 use axum::extract::Multipart;
 use axum::{extract::State, Json};
 
