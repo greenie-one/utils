@@ -12,6 +12,7 @@ pub mod handlers;
 pub mod routes;
 pub mod services;
 pub mod state;
+pub mod models;
 
 pub async fn build_run() {
     env_config::load_env();
