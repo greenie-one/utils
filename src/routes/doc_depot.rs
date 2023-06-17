@@ -1,24 +1,27 @@
 use axum::{extract::DefaultBodyLimit, Router};
+use tracing::info;
 
 use crate::{
-    handlers::profile_picture::{upload},
     state::{
         blob_storage::{self, ContainerType},
         db::Database, app_state::AppState,
-    },
+    }, handlers::doc_depot::upload,
 };
 
-const MAX_SIZE: usize = 4 * 1024 * 1024; // max payload size is 4MB
+const MAX_SIZE: usize = 10 * 1024 * 1024; // max payload size is 4MB
 
 pub async fn routes() -> Router {
-    let blob_storage = blob_storage::get_container_client(ContainerType::Images);
+    let db = Database::get_client().await.unwrap();
+    let blob_storage = blob_storage::get_container_client(ContainerType::Files);
 
     let state = AppState {
+        db,
         container_client: blob_storage,
     };
-    info!("Mapping profile picture routes - POST /profile_pic");
+
+    info!("Mapping Doc Depot routes");
     axum::Router::new()
-        .route("/profile_pic", axum::routing::post(upload))
+        .route("/doc_depot", axum::routing::post(upload))
         .with_state(state)
         .layer(DefaultBodyLimit::max(MAX_SIZE))
 }
