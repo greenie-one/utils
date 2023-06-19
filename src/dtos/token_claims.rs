@@ -1,8 +1,7 @@
-use crate::Result;
 use axum::{extract::FromRequestParts, http::request::Parts};
 use serde::{Deserialize, Serialize};
 
-use crate::Error;
+use crate::errors::{Result, Error};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TokenClaims {
