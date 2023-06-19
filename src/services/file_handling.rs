@@ -40,13 +40,13 @@ pub fn get_container_client_from_sas(container_name: String, sas_token: String) 
 }
 
 pub async fn upload_file_chunked<'a>(
-    mut file: File<'a>,
+    file: &mut File<'a>,
     container_client: &mut ContainerClient,
 ) -> Result<Url> {
-    let file_name = file.name;
-    let content_type = file.content_type;
+    let file_name = &file.name;
+    let content_type = &file.content_type;
 
-    let blob_client = container_client.blob_client(file_name.as_str());
+    let blob_client = container_client.blob_client(file_name);
     let mut blocks = BlockList { blocks: Vec::new() };
 
     let mut chunk_id = 0;
@@ -132,14 +132,14 @@ pub fn monitor_file_commit(
             Some(val) => {
                 let obj: FileStatus = serde_json::from_str(val.as_str()).unwrap();
                 if !obj.commited {
-                    warn!("File not commited, deleting file");
+                    warn!("{}", format!("File not commited, deleting file, key found, file: {}, url: {}", file_name, url));
                     delete_file(file_name.as_str(), container_client)
                         .await
                         .unwrap();
                 }
             }
             None => {
-                warn!("File not commited, deleting file, key not found");
+                warn!("{}", format!("File not commited, deleting file, key not found, file: {}, url: {}", file_name, url));
                 delete_file(file_name.as_str(), container_client)
                     .await
                     .unwrap();
