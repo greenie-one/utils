@@ -14,8 +14,8 @@ pub async fn upload(
     mut multipart: Multipart,
 ) -> Result<Json<Value>> {
     let field = multipart.next_field().await.unwrap().unwrap();
-    let file = validate_image_field(field, &user_details)?;
-    let url = upload_file_chunked(file, &mut state.container_client).await?;
+    let mut file = validate_image_field(field, &user_details)?;
+    let url = upload_file_chunked(&mut file, &mut state.container_client).await?;
     let url = url.to_string();
 
     Ok(Json(json!({

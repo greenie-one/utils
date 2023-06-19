@@ -1,15 +1,18 @@
 use crate::dtos::redis_values::FileStatus;
 use crate::dtos::token_claims::TokenClaims;
+use crate::env_config::FILE_VALIDATION_TIMEOUT;
 use crate::errors::Result;
-use crate::services::file_handling::{get_container_client, upload_file_chunked, monitor_file_commit};
+use crate::services::file_handling::{
+    get_container_client, monitor_file_commit, upload_file_chunked,
+};
 use crate::services::validate_field::validate_pdf_field;
 use crate::state::app_state::FileHandlerState;
 use axum::extract::{Multipart, State};
 use axum::Json;
 
+use chrono::Utc;
 use redis::Commands;
 use serde_json::{json, Value};
-
 
 pub async fn upload(
     State(mut state): State<FileHandlerState>,
@@ -22,18 +25,28 @@ pub async fn upload(
     }
 
     let field = multipart.next_field().await.unwrap().unwrap();
-    let file = validate_pdf_field(field)?;
-    let file_name = file.name.clone();
-    let url = upload_file_chunked(file, &mut container_client).await?;
-    let url = url.to_string();
+
+    let mut file = validate_pdf_field(field)?;
+    let url = upload_file_chunked(&mut file, &mut container_client).await?;
+    let url = url.as_ref();
 
     state.redis_client.set_ex(
-        url.clone(),
-        serde_json::to_string(&FileStatus { commited: false }).unwrap(),
-        360,
+        url,
+        serde_json::to_string(&FileStatus {
+            commited: false,
+            uplaod_time: Utc::now(),
+        })
+        .unwrap(),
+        (*FILE_VALIDATION_TIMEOUT + 60) as usize,
     )?;
 
-    monitor_file_commit(file_name, container_client, state.redis_client, url.clone(), 300);
+    monitor_file_commit(
+        file.name,
+        container_client,
+        state.redis_client,
+        url.to_string(),
+        *FILE_VALIDATION_TIMEOUT,
+    );
 
     Ok(Json(json!({
         "message": "File uploaded successfully",
