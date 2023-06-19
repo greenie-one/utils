@@ -5,5 +5,5 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileStatus {
     pub commited: bool,
-    pub uplaod_time: DateTime<Utc>,
+    pub upload_time: DateTime<Utc>,
 }
