@@ -120,12 +120,11 @@ pub async fn delete_file(file_name: &str, container_client: ContainerClient) -> 
 pub fn monitor_file_commit(
     file_name: String,
     container_client: ContainerClient,
-    redis_client: redis::Client,
+    mut redis_client: redis::Client,
     url: String,
     monitor_time_in_secs: u64,
 ) {
     tokio::spawn(async move {
-        let mut redis_client = redis_client.clone();
         tokio::time::sleep(tokio::time::Duration::from_secs(monitor_time_in_secs)).await;
         let value: Option<String> = redis_client.get(url.as_str()).unwrap();
         match value {
