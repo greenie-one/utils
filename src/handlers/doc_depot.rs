@@ -34,7 +34,7 @@ pub async fn upload(
         url,
         serde_json::to_string(&FileStatus {
             commited: false,
-            uplaod_time: Utc::now(),
+            upload_time: Utc::now(),
         })
         .unwrap(),
         (*FILE_VALIDATION_TIMEOUT + 60) as usize,
