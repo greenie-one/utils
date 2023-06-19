@@ -2,25 +2,22 @@ use axum::{
     extract::multipart::MultipartError,
     response::{IntoResponse, Response},
 };
+use redis::RedisError;
 use serde_json::json;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    // Predefined errors
     Unauthorized,
     ProfileNotFound,
 
-    // File handling errors
     PayloadTooLarge,
     InvalidFileName,
     InvalidContentType,
     InavlidFileExtension,
 
-    // MongoDB errors
     InvlaidId(String),
-
     InternalServerError(String),
 }
 
@@ -44,22 +41,16 @@ impl From<azure_core::Error> for Error {
         Error::InternalServerError(format!("Azure Core Error: {:?}", value))
     }
 }
-impl From<mongodb::bson::oid::Error> for Error {
-    fn from(value: mongodb::bson::oid::Error) -> Self {
-        Error::InvlaidId(format!("MongoDB Error: {:?}", value))
+
+impl From<RedisError> for Error {
+    fn from(value: RedisError) -> Self {
+        Error::InternalServerError(format!("Redis Error: {:?}", value))
     }
 }
-
-impl From<mongodb::error::Error> for Error {
-    fn from(value: mongodb::error::Error) -> Self {
-        Error::InternalServerError(format!("MongoDB Error: {:?}", value))
-    }
-}
-
+    
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
-            // Predefined errors
             Error::Unauthorized => ErrorMessages {
                 message: "Unauthorized".to_string(),
                 status_code: axum::http::StatusCode::UNAUTHORIZED,
@@ -72,8 +63,6 @@ impl IntoResponse for Error {
                 code: "GR0009",
             }
             .into_response(),
-
-            // New errors
             Error::InternalServerError(value) => ErrorMessages {
                 message: value,
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
