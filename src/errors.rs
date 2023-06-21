@@ -10,14 +10,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     Unauthorized,
-    ProfileNotFound,
 
     PayloadTooLarge,
     InvalidFileName,
     InvalidContentType,
     InavlidFileExtension,
 
-    InvlaidId(String),
     InternalServerError(String),
 }
 
@@ -57,12 +55,6 @@ impl IntoResponse for Error {
                 code: "GR0001",
             }
             .into_response(),
-            Error::ProfileNotFound => ErrorMessages {
-                message: "Profile not found".to_string(),
-                status_code: axum::http::StatusCode::NOT_FOUND,
-                code: "GR0009",
-            }
-            .into_response(),
             Error::InternalServerError(value) => ErrorMessages {
                 message: value,
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -85,12 +77,6 @@ impl IntoResponse for Error {
                 message: "Content type error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GR1005",
-            }
-            .into_response(),
-            Error::InvlaidId(value) => ErrorMessages {
-                message: value,
-                status_code: axum::http::StatusCode::BAD_REQUEST,
-                code: "GR1006",
             }
             .into_response(),
             Error::InavlidFileExtension => ErrorMessages {
