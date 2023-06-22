@@ -22,7 +22,7 @@ pub async fn build_run() {
 
     // Redis Pub Sub Service to monitor messages on doc_delete channel
     thread::spawn(move || {
-        println!("Starting Redis Pub Sub Service");
+        info!("Starting Redis Pub Sub Service");
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(delete_message_consumer());

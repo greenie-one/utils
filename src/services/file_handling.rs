@@ -120,6 +120,7 @@ pub async fn delete_message_consumer() {
     let mut con = redis_client.get_connection().unwrap();
     let mut pubsub = con.as_pubsub();
     pubsub.subscribe("doc_delete").unwrap();
+    info!("Delete Doc -> Subscribed to channel: doc_delete");
     loop {
         let msg = pubsub.get_message().unwrap();
         let channel = msg.get_channel_name();
