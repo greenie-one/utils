@@ -7,11 +7,11 @@ use axum::extract::multipart::Field;
 use azure_core::Url;
 
 use azure_storage_blobs::prelude::{BlobBlockType, BlockList, ContainerClient};
-use redis::Commands;
+use redis::{Commands, PubSub};
 
 use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::ClientBuilder;
-use tracing::log::{info, warn};
+use tracing::log::{error, info, warn};
 
 pub struct File<'a> {
     pub name: String,
@@ -115,22 +115,28 @@ pub fn monitor_file_commit(
     });
 }
 
-pub async fn delete_message_consumer() {
+pub async fn delete_message_consumer() -> Result<()> {
     let redis_client = get_client();
-    let mut con = redis_client.get_connection().unwrap();
+    let mut con = redis_client.get_connection()?;
     let mut pubsub = con.as_pubsub();
-    pubsub.subscribe("doc_delete").unwrap();
+    pubsub.subscribe("doc_delete")?;
     info!("Delete Doc -> Subscribed to channel: doc_delete");
     loop {
-        let msg = pubsub.get_message().unwrap();
-        let channel = msg.get_channel_name();
-        let payload: String = msg.get_payload().unwrap();
-        info!("Delete Doc -> Channel: {}, Payload: {}", channel, payload);
-        let delete_doc =
-            serde_json::from_str::<dtos::redis_values::FileDeleteRequest>(&payload).unwrap();
-        let container_client = get_container_client(delete_doc.container_name.clone());
-        delete_file(delete_doc.file_name.as_str(), container_client)
-            .await
-            .unwrap();
+        let res = delete_message_handler(&mut pubsub).await;
+        if res.is_err() {
+            error!("{}", format!("Delete error: {:?}", res));
+        }
     }
+}
+
+pub async fn delete_message_handler(pubsub: &mut PubSub<'_>) -> Result<()> {
+    let msg = pubsub.get_message()?;
+    let channel = msg.get_channel_name();
+    let payload: String = msg.get_payload()?;
+    info!("Redis PubSub -> Channel: {}, Payload: {}", channel, payload);
+    let delete_doc =
+        serde_json::from_str::<dtos::redis_values::FileDeleteRequest>(&payload)?;
+    let container_client = get_container_client(delete_doc.container_name.clone());
+    delete_file(delete_doc.file_name.as_str(), container_client).await?;
+    Ok(())
 }

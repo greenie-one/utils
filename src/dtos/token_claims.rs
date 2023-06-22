@@ -25,12 +25,7 @@ impl<S: Send + Sync> FromRequestParts<S> for TokenClaims {
             .ok_or(Error::Unauthorized)?
             .to_str()
             .unwrap();
-        let token = serde_json::from_str::<TokenClaims>(token_str);
-        match token {
-            Ok(token) => Ok(token),
-            Err(_) => Err(Error::InternalServerError(
-                "Invalid token - cannot parse".to_string(),
-            )),
-        }
+        let token = serde_json::from_str::<TokenClaims>(token_str)?;
+        Ok(token)
     }
 }
