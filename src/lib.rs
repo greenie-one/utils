@@ -1,6 +1,6 @@
 use axum::{routing::get, Router};
 use std::{net::SocketAddr, thread};
-use tracing::{info, Level};
+use tracing::{info, log::error, Level};
 use tracing_subscriber::{
     filter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -22,10 +22,18 @@ pub async fn build_run() {
 
     // Redis Pub Sub Service to monitor messages on doc_delete channel
     thread::spawn(move || {
-        println!("Starting Redis Pub Sub Service");
         tokio::runtime::Runtime::new()
             .unwrap()
-            .block_on(delete_message_consumer());
+            .block_on(async move {
+                for _ in 0..10 {
+                    info!("Starting Redis Pub Sub Service");
+                    let res = delete_message_consumer().await;
+                    if res.is_err() {
+                        error!("{}", format!("PubSub error: {:?}", res));
+                    }
+                }
+                error!("Redis PubSub max (10) restarts reached, exiting loop");
+            });
     });
 
     let filter = filter::Targets::new()

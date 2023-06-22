@@ -45,7 +45,13 @@ impl From<RedisError> for Error {
         Error::InternalServerError(format!("Redis Error: {:?}", value))
     }
 }
-    
+
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Self {
+        Error::InternalServerError(format!("Serde Error: {:?}", value))
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
