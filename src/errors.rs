@@ -1,6 +1,6 @@
 use axum::{
     extract::multipart::MultipartError,
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Response}, Json,
 };
 use redis::RedisError;
 use serde_json::json;
@@ -101,19 +101,18 @@ struct ErrorMessages {
     code: &'static str,
 }
 
-impl ToString for ErrorMessages {
-    fn to_string(&self) -> String {
+impl ErrorMessages {
+    fn to_json(&self) -> serde_json::Value {
         json!({
             "message": self.message,
             "statusCode": self.status_code.as_str(),
             "code": self.code
         })
-        .to_string()
     }
 }
 
 impl IntoResponse for ErrorMessages {
     fn into_response(self) -> Response {
-        (self.status_code, self.to_string()).into_response()
+        (self.status_code, Json(self.to_json())).into_response()
     }
 }
