@@ -1,16 +1,17 @@
-use crate::{errors::Result, dtos::redis_values::FileStatus};
+use crate::{
+    dtos::{self, redis_values::FileStatus},
+    errors::Result,
+    state::redis::get_client,
+};
 use axum::extract::multipart::Field;
 use azure_core::Url;
-use azure_storage::{
-    prelude::BlobSasPermissions, shared_access_signature::service_sas::BlobSharedAccessSignature,
-};
+
 use azure_storage_blobs::prelude::{BlobBlockType, BlockList, ContainerClient};
-use redis::Commands;
-use time::OffsetDateTime;
+use redis::{Commands, PubSub};
 
 use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::ClientBuilder;
-use tracing::log::warn;
+use tracing::log::{error, info, warn};
 
 pub struct File<'a> {
     pub name: String,
@@ -18,23 +19,11 @@ pub struct File<'a> {
     pub field: Field<'a>,
 }
 
-fn get_storage_account_key() -> StorageCredentials {
+pub fn get_container_client(container_name: String) -> ContainerClient {
     let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
     let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
 
-    StorageCredentials::Key(account.clone(), access_key)
-}
-
-pub fn get_container_client(container_name: String) -> ContainerClient {
-    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
-    let storage_credentials = get_storage_account_key();
-
-    ClientBuilder::new(account, storage_credentials).container_client(container_name)
-}
-
-pub fn get_container_client_from_sas(container_name: String, sas_token: String) -> ContainerClient {
-    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
-    let storage_credentials = StorageCredentials::sas_token(sas_token).unwrap();
+    let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
 
     ClientBuilder::new(account, storage_credentials).container_client(container_name)
 }
@@ -65,51 +54,17 @@ pub async fn upload_file_chunked<'a>(
     Ok(blob_client.url()?)
 }
 
-pub async fn upload_file<'a>(file: File<'a>, container_client: ContainerClient) -> Result<Url> {
-    let file_name = file.name;
-    let content_type = file.content_type;
+// pub async fn upload_file<'a>(file: File<'a>, container_client: ContainerClient) -> Result<Url> {
+//     let file_name = file.name;
+//     let content_type = file.content_type;
 
-    let blob_client = container_client.blob_client(file_name);
-    blob_client
-        .put_block_blob(file.field.bytes().await?)
-        .content_type(content_type)
-        .await?;
-    Ok(blob_client.url()?)
-}
-
-pub fn get_blob_sas(
-    container_client: &mut ContainerClient,
-    file_name: &str,
-    expiry_in_mins: i64,
-) -> Result<BlobSharedAccessSignature> {
-    let blob_client = container_client.blob_client(file_name);
-    let expiry = OffsetDateTime::now_utc() + time::Duration::minutes(expiry_in_mins);
-    let sas = blob_client.shared_access_signature(
-        BlobSasPermissions {
-            read: true,
-            ..BlobSasPermissions::default()
-        },
-        expiry,
-    )?;
-
-    Ok(sas)
-}
-
-pub fn get_container_sas(
-    container_client: &mut ContainerClient,
-    expiry_in_mins: i64,
-) -> Result<BlobSharedAccessSignature> {
-    let expiry = OffsetDateTime::now_utc() + time::Duration::minutes(expiry_in_mins);
-    let sas = container_client.shared_access_signature(
-        BlobSasPermissions {
-            read: true,
-            ..BlobSasPermissions::default()
-        },
-        expiry,
-    )?;
-
-    Ok(sas)
-}
+//     let blob_client = container_client.blob_client(file_name);
+//     blob_client
+//         .put_block_blob(file.field.bytes().await?)
+//         .content_type(content_type)
+//         .await?;
+//     Ok(blob_client.url()?)
+// }
 
 pub async fn delete_file(file_name: &str, container_client: ContainerClient) -> Result<()> {
     let blob_client = container_client.blob_client(file_name);
@@ -131,14 +86,26 @@ pub fn monitor_file_commit(
             Some(val) => {
                 let obj: FileStatus = serde_json::from_str(val.as_str()).unwrap();
                 if !obj.commited {
-                    warn!("{}", format!("File not commited, deleting file, key found, file: {}, url: {}", file_name, url));
+                    warn!(
+                        "{}",
+                        format!(
+                            "File not commited, deleting file, key found, file: {}, url: {}",
+                            file_name, url
+                        )
+                    );
                     delete_file(file_name.as_str(), container_client)
                         .await
                         .unwrap();
                 }
             }
             None => {
-                warn!("{}", format!("File not commited, deleting file, key not found, file: {}, url: {}", file_name, url));
+                warn!(
+                    "{}",
+                    format!(
+                        "File not commited, deleting file, key not found, file: {}, url: {}",
+                        file_name, url
+                    )
+                );
                 delete_file(file_name.as_str(), container_client)
                     .await
                     .unwrap();
@@ -146,4 +113,30 @@ pub fn monitor_file_commit(
         }
         let _: i32 = redis_client.del(url.as_str()).unwrap();
     });
+}
+
+pub async fn delete_message_consumer() -> Result<()> {
+    let redis_client = get_client();
+    let mut con = redis_client.get_connection()?;
+    let mut pubsub = con.as_pubsub();
+    pubsub.subscribe("doc_delete")?;
+    info!("Delete Doc -> Subscribed to channel: doc_delete");
+    loop {
+        let res = delete_message_handler(&mut pubsub).await;
+        if res.is_err() {
+            error!("{}", format!("Delete error: {:?}", res));
+        }
+    }
+}
+
+pub async fn delete_message_handler(pubsub: &mut PubSub<'_>) -> Result<()> {
+    let msg = pubsub.get_message()?;
+    let channel = msg.get_channel_name();
+    let payload: String = msg.get_payload()?;
+    info!("Redis PubSub -> Channel: {}, Payload: {}", channel, payload);
+    let delete_doc =
+        serde_json::from_str::<dtos::redis_values::FileDeleteRequest>(&payload)?;
+    let container_client = get_container_client(delete_doc.container_name.clone());
+    delete_file(delete_doc.file_name.as_str(), container_client).await?;
+    Ok(())
 }

@@ -1,22 +1,40 @@
 use axum::{routing::get, Router};
-use std::net::SocketAddr;
-use tracing::{Level, info};
+use std::{net::SocketAddr, thread};
+use tracing::{info, log::error, Level};
 use tracing_subscriber::{
     filter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
 
-pub mod dtos;
-pub mod env_config;
-pub mod errors;
-pub mod handlers;
-pub mod routes;
-pub mod services;
-pub mod state;
+use crate::services::file_handling::delete_message_consumer;
+
+pub(crate) mod dtos;
+pub(crate) mod env_config;
+pub(crate) mod errors;
+pub(crate) mod handlers;
+pub(crate) mod routes;
+pub(crate) mod services;
+pub(crate) mod state;
 
 pub async fn build_run() {
     env_config::load_env();
 
     let tracing_layer = tracing_subscriber::fmt::layer();
+
+    // Redis Pub Sub Service to monitor messages on doc_delete channel
+    thread::spawn(move || {
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async move {
+                for _ in 0..10 {
+                    info!("Starting Redis Pub Sub Service");
+                    let res = delete_message_consumer().await;
+                    if res.is_err() {
+                        error!("{}", format!("PubSub error: {:?}", res));
+                    }
+                }
+                error!("Redis PubSub max (10) restarts reached, exiting loop");
+            });
+    });
 
     let filter = filter::Targets::new()
         .with_target("tower_http::trace::on_response", Level::TRACE)

@@ -10,14 +10,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     Unauthorized,
-    ProfileNotFound,
 
     PayloadTooLarge,
     InvalidFileName,
     InvalidContentType,
     InavlidFileExtension,
 
-    InvlaidId(String),
     InternalServerError(String),
 }
 
@@ -47,7 +45,13 @@ impl From<RedisError> for Error {
         Error::InternalServerError(format!("Redis Error: {:?}", value))
     }
 }
-    
+
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Self {
+        Error::InternalServerError(format!("Serde Error: {:?}", value))
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
@@ -55,12 +59,6 @@ impl IntoResponse for Error {
                 message: "Unauthorized".to_string(),
                 status_code: axum::http::StatusCode::UNAUTHORIZED,
                 code: "GR0001",
-            }
-            .into_response(),
-            Error::ProfileNotFound => ErrorMessages {
-                message: "Profile not found".to_string(),
-                status_code: axum::http::StatusCode::NOT_FOUND,
-                code: "GR0009",
             }
             .into_response(),
             Error::InternalServerError(value) => ErrorMessages {
@@ -85,12 +83,6 @@ impl IntoResponse for Error {
                 message: "Content type error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GR1005",
-            }
-            .into_response(),
-            Error::InvlaidId(value) => ErrorMessages {
-                message: value,
-                status_code: axum::http::StatusCode::BAD_REQUEST,
-                code: "GR1006",
             }
             .into_response(),
             Error::InavlidFileExtension => ErrorMessages {
