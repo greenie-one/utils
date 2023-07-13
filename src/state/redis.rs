@@ -1,4 +1,4 @@
-use redis::{Client};
+use redis::Client;
 use std::env;
 
 pub fn get_client() -> Client {
