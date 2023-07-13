@@ -1,6 +1,8 @@
 use axum::{
     extract::multipart::MultipartError,
-    response::{IntoResponse, Response}, Json, http::header,
+    http::header,
+    response::{IntoResponse, Response},
+    Json,
 };
 use redis::RedisError;
 use serde_json::json;
@@ -113,6 +115,11 @@ impl ErrorMessages {
 
 impl IntoResponse for ErrorMessages {
     fn into_response(self) -> Response {
-        (self.status_code, [(header::CONTENT_TYPE, "application/json")] ,Json(self.to_json())).into_response()
+        (
+            self.status_code,
+            [(header::CONTENT_TYPE, "application/json")],
+            Json(self.to_json()),
+        )
+            .into_response()
     }
 }
