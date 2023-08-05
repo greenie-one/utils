@@ -1,7 +1,10 @@
 use axum::{
     extract::multipart::MultipartError,
+    http::header,
     response::{IntoResponse, Response},
+    Json,
 };
+use redis::RedisError;
 use serde_json::json;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -10,11 +13,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     Unauthorized,
 
-    MailError,
-
     PayloadTooLarge,
     InvalidFileName,
     InvalidContentType,
+    InavlidFileExtension,
 
     InternalServerError(String),
 }
@@ -40,43 +42,55 @@ impl From<azure_core::Error> for Error {
     }
 }
 
+impl From<RedisError> for Error {
+    fn from(value: RedisError) -> Self {
+        Error::InternalServerError(format!("Redis Error: {:?}", value))
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Self {
+        Error::InternalServerError(format!("Serde Error: {:?}", value))
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
             Error::Unauthorized => ErrorMessages {
                 message: "Unauthorized".to_string(),
                 status_code: axum::http::StatusCode::UNAUTHORIZED,
-                code: "GR001",
-            }
-            .into_response(),
-            Error::MailError => ErrorMessages {
-                message: "Mail Error".to_string(),
-                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                code: "GR102",
+                code: "GR0001",
             }
             .into_response(),
             Error::InternalServerError(value) => ErrorMessages {
                 message: value,
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                code: "GR103",
+                code: "GR1002",
             }
             .into_response(),
             Error::PayloadTooLarge => ErrorMessages {
                 message: "Payload too large".to_string(),
                 status_code: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
-                code: "GR104",
+                code: "GR1003",
             }
             .into_response(),
             Error::InvalidFileName => ErrorMessages {
                 message: "File name error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
-                code: "GR105",
+                code: "GR1004",
             }
             .into_response(),
             Error::InvalidContentType => ErrorMessages {
                 message: "Content type error".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
-                code: "GR106",
+                code: "GR1005",
+            }
+            .into_response(),
+            Error::InavlidFileExtension => ErrorMessages {
+                message: "Invalid file extension".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR1007",
             }
             .into_response(),
         }
@@ -89,19 +103,23 @@ struct ErrorMessages {
     code: &'static str,
 }
 
-impl ToString for ErrorMessages {
-    fn to_string(&self) -> String {
+impl ErrorMessages {
+    fn to_json(&self) -> serde_json::Value {
         json!({
             "message": self.message,
             "statusCode": self.status_code.as_str(),
             "code": self.code
         })
-        .to_string()
     }
 }
 
 impl IntoResponse for ErrorMessages {
     fn into_response(self) -> Response {
-        (self.status_code, self.to_string()).into_response()
+        (
+            self.status_code,
+            [(header::CONTENT_TYPE, "application/json")],
+            Json(self.to_json()),
+        )
+            .into_response()
     }
 }
