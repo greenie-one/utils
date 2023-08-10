@@ -1,21 +1,23 @@
-use crate::{dtos::token_claims::TokenClaims, errors::{Result, Error}};
+use crate::dtos::token_claims::TokenClaims;
+use crate::errors::api_errors::APIResult;
+use crate::errors::api_errors::APIError;
 
 use super::file_handling::File;
 use axum::extract::multipart::Field;
 
-pub fn validate_image_field<'a>(field: Field<'a>, user_details: &TokenClaims) -> Result<File<'a>> {
-    let file_name = field.file_name().ok_or_else(|| Error::InvalidFileName)?;
+pub fn validate_image_field<'a>(field: Field<'a>, user_details: &TokenClaims) -> APIResult<File<'a>> {
+    let file_name = field.file_name().ok_or_else(|| APIError::InvalidFileName)?;
     let content_type = field
         .content_type()
-        .ok_or_else(|| Error::InvalidContentType)?;
+        .ok_or_else(|| APIError::InvalidContentType)?;
 
     if !content_type.starts_with("image/") {
-        return Err(Error::InvalidContentType);
+        return Err(APIError::InvalidContentType);
     }
 
     if !file_name.ends_with(".jpg") && !file_name.ends_with(".jpeg") && !file_name.ends_with(".png")
     {
-        return Err(Error::InavlidFileExtension);
+        return Err(APIError::InavlidFileExtension);
     }
 
     let file_extension = file_name.split('.').last().unwrap();
@@ -28,18 +30,18 @@ pub fn validate_image_field<'a>(field: Field<'a>, user_details: &TokenClaims) ->
     })
 }
 
-pub fn validate_pdf_field(field: Field) -> Result<File> {
-    let file_name = field.file_name().ok_or_else(|| Error::InvalidFileName)?;
+pub fn validate_pdf_field(field: Field) -> APIResult<File> {
+    let file_name = field.file_name().ok_or_else(|| APIError::InvalidFileName)?;
     let content_type = field
         .content_type()
-        .ok_or_else(|| Error::InvalidContentType)?;
+        .ok_or_else(|| APIError::InvalidContentType)?;
 
     if !content_type.starts_with("application/pdf") {
-        return Err(Error::InvalidContentType);
+        return Err(APIError::InvalidContentType);
     }
 
     if !file_name.ends_with(".pdf") {
-        return Err(Error::InavlidFileExtension);
+        return Err(APIError::InavlidFileExtension);
     }
 
     Ok(File {
