@@ -1,6 +1,6 @@
-use azure_storage_blobs::prelude::ContainerClient;
+use crate::services::doc_depot::DocDepotService;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub container_client: ContainerClient,
+    pub doc_depot_service: DocDepotService,
 }

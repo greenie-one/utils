@@ -6,7 +6,6 @@ use tracing_subscriber::{
     filter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
 
-use crate::services::file_cleanup_job::cleanup;
 pub(crate) mod database;
 pub(crate) mod dtos;
 pub(crate) mod env_config;
@@ -15,6 +14,8 @@ pub(crate) mod handlers;
 pub(crate) mod routes;
 pub(crate) mod services;
 pub(crate) mod state;
+pub(crate) mod utils;
+pub(crate) mod cron;
 
 const CRON_TIME_INTERVAL_IN_SEC: u64 = 60 * 60 * 24;
 
@@ -32,7 +33,7 @@ pub async fn build_run() {
                     let mut interval = time::interval(Duration::from_secs(CRON_TIME_INTERVAL_IN_SEC));
                     loop {
                         interval.tick().await;
-                        let res = cleanup().await;
+                        let res = cron::cleanup().await;
                         if let Err(e) = res {
                             error!("Cleanup job failed: {}", e.to_string());
                         }

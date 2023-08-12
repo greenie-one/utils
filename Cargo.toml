@@ -20,6 +20,7 @@ tracing-subscriber = "0.3.17"
 tower-http = { version = "0.4.0", features = ["trace"] }
 tracing = "0.1.27"
 futures-util = "0.3.28"
+aes-gcm = "0.10.2"
 
 [dev-dependencies]
 anyhow = "1"

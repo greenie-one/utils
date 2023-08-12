@@ -5,12 +5,14 @@ use axum::{
     Json,
 };
 use serde_json::json;
+use tracing::log::error;
 
 pub type APIResult<T> = std::result::Result<T, APIError>;
 #[derive(Debug)]
 pub enum APIError {
     Unauthorized,
     PayloadTooLarge,
+    NoFileAttached,
     InvalidFileName,
     InvalidContentType,
     InavlidFileExtension,
@@ -67,17 +69,6 @@ impl ErrorMessages {
     }
 }
 
-impl IntoResponse for ErrorMessages {
-    fn into_response(self) -> Response {
-        (
-            self.status_code,
-            [(header::CONTENT_TYPE, "application/json")],
-            Json(self.to_json()),
-        )
-            .into_response()
-    }
-}
-
 impl From<APIError> for ErrorMessages {
     fn from(value: APIError) -> Self {
         match value {
@@ -86,11 +77,14 @@ impl From<APIError> for ErrorMessages {
                 status_code: axum::http::StatusCode::UNAUTHORIZED,
                 code: "GR0001",
             },
-            APIError::InternalServerError(value) => ErrorMessages {
-                message: value,
-                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                code: "GR1002",
-            },
+            APIError::InternalServerError(err) => {
+                error!("Internal Server Error: {}", err);
+                return ErrorMessages {
+                    message: "Internal server error".to_string(),
+                    status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    code: "GR1002",
+                }
+            }
             APIError::PayloadTooLarge => ErrorMessages {
                 message: "Payload too large".to_string(),
                 status_code: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
@@ -111,6 +105,22 @@ impl From<APIError> for ErrorMessages {
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GR1007",
             },
+            APIError::NoFileAttached => ErrorMessages {
+                message: "No file attached".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR1008",
+            },
         }
+    }
+}
+
+impl IntoResponse for ErrorMessages {
+    fn into_response(self) -> Response {
+        (
+            self.status_code,
+            [(header::CONTENT_TYPE, "application/json")],
+            Json(self.to_json()),
+        )
+            .into_response()
     }
 }

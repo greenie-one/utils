@@ -6,9 +6,10 @@ use futures_util::StreamExt;
 use mongodb::bson::Document;
 use tracing::log::info;
 
+use crate::errors::server_errors::ServerError;
 use crate::{database::mongo::MongoDB, errors::server_errors::ServerResult};
 
-use super::checks::is_object_id;
+use crate::utils::checks::is_object_id;
 
 pub async fn fetch_container_names() -> ServerResult<Vec<String>> {
     let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
@@ -31,7 +32,9 @@ pub async fn fetch_container_names() -> ServerResult<Vec<String>> {
     return Ok(container_names_all);
 }
 
-pub async fn list_blob_names(container_names: Vec<String>) -> ServerResult<HashMap<String, HashSet<String>>> {
+pub async fn list_blob_names(
+    container_names: Vec<String>,
+) -> ServerResult<HashMap<String, HashSet<String>>> {
     let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
     let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
     let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
@@ -107,11 +110,11 @@ pub async fn delete_blobs(container_name: String, blob_names: Vec<String>) {
 
 pub async fn cleanup() -> ServerResult<()> {
     let storage_container_names = fetch_container_names().await?;
-    let db_files = fetch_private_urls().await?;
+    let private_urls = fetch_private_urls().await?;
     let storage_container_names_set: HashSet<String> =
         storage_container_names.iter().map(|f| f.clone()).collect();
 
-    let db_container_names_set: HashSet<String> = db_files.iter().map(|f| f.0.clone()).collect();
+    let db_container_names_set: HashSet<String> = private_urls.iter().map(|f| f.0.clone()).collect();
     let difference = storage_container_names_set.difference(&db_container_names_set);
 
     let to_delete_containers: Vec<String> = difference.map(|f| f.clone()).collect();
@@ -120,7 +123,12 @@ pub async fn cleanup() -> ServerResult<()> {
     let mut join_set = tokio::task::JoinSet::new();
     let stored_files = list_blob_names(db_container_names_set.into_iter().collect()).await?;
     for (container_name, stored_file_names) in stored_files {
-        let db_file_names = db_files.get(&container_name).unwrap();
+        let db_file_names = private_urls.get(&container_name).ok_or_else(|| {
+            ServerError::AzureError(format!(
+                "No user found for container: {}",
+                container_name
+            ))
+        })?;
 
         let difference = stored_file_names.difference(&db_file_names);
         let to_delete_files: Vec<String> = difference.map(|f| f.clone()).collect();
@@ -128,6 +136,6 @@ pub async fn cleanup() -> ServerResult<()> {
     }
 
     handle.await.unwrap();
-    while let Some(_) = join_set.join_next().await {};
+    while let Some(_) = join_set.join_next().await {}
     Ok(())
 }
