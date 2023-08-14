@@ -26,6 +26,12 @@ impl From<bcrypt::BcryptError> for APIError {
     }
 }
 
+impl From<azure_core::Error> for APIError {
+    fn from(value: azure_core::Error) -> Self {
+        APIError::InternalServerError(format!("Azure Core Error: {:?}", value))
+    }
+}
+
 impl From<mongodb::error::Error> for APIError {
     fn from(value: mongodb::error::Error) -> Self {
         APIError::InternalServerError(format!("MongoDB Error: {:?}", value))
@@ -44,12 +50,6 @@ impl From<MultipartError> for APIError {
                 ))
             }
         }
-    }
-}
-
-impl From<azure_core::Error> for APIError {
-    fn from(value: azure_core::Error) -> Self {
-        APIError::InternalServerError(format!("Azure Core Error: {:?}", value))
     }
 }
 

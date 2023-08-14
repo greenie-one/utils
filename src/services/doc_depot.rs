@@ -1,11 +1,12 @@
-use crate::errors::api_errors::APIResult;
-use axum::extract::multipart::Field;
+use crate::errors::api_errors::{APIResult, APIError};
+use axum::body::StreamBody;
+use axum::{extract::multipart::Field, http::header};
+use axum::response::IntoResponse;
 use azure_core::Url;
-
 use azure_storage_blobs::prelude::ContainerClient;
-
 use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::ClientBuilder;
+use futures_util::StreamExt;
 
 pub struct File<'a> {
     pub name: String,
@@ -44,5 +45,23 @@ impl DocDepotService {
             .content_type(content_type)
             .await?;
         Ok(blob_client.url()?)
+    }
+
+    pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
+        let blob_client = self.container_client.blob_client(file_name);
+        let mut data = blob_client.get().into_stream();
+        let blob = data.next().await.ok_or_else(|| APIError::InternalServerError("No data found".to_string()))??;
+
+        let content_type = blob.blob.properties.content_type;
+        let file_name = blob.blob.name;
+        let stream_body = StreamBody::new(blob.data);
+        let headers = [
+            (header::CONTENT_TYPE, content_type),
+            (
+                header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{}\"", file_name),
+            ),
+        ];
+        Ok((headers, stream_body))
     }
 }
