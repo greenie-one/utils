@@ -17,8 +17,21 @@ pub enum APIError {
     InvalidContentType,
     InavlidFileExtension,
     InternalServerError(String),
+    UserAlreadyExists,
 }
 
+impl From<bcrypt::BcryptError> for APIError {
+    fn from(value: bcrypt::BcryptError) -> Self {
+        APIError::InternalServerError(format!("Bcrypt Error: {:?}", value))
+    }
+}
+
+impl From<mongodb::error::Error> for APIError {
+    fn from(value: mongodb::error::Error) -> Self {
+        APIError::InternalServerError(format!("MongoDB Error: {:?}", value))
+    }
+}
+    
 impl From<MultipartError> for APIError {
     fn from(value: MultipartError) -> Self {
         let status_code = value.status();
@@ -110,6 +123,11 @@ impl From<APIError> for ErrorMessages {
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GR1008",
             },
+            APIError::UserAlreadyExists => ErrorMessages {
+                message: "User already exists".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GRA0003",
+            }
         }
     }
 }

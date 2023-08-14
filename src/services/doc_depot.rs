@@ -1,5 +1,5 @@
 use crate::errors::api_errors::APIResult;
-use axum::{body::Bytes, extract::multipart::Field};
+use axum::extract::multipart::Field;
 use azure_core::Url;
 
 use azure_storage_blobs::prelude::ContainerClient;
@@ -13,17 +13,11 @@ pub struct File<'a> {
     pub field: Field<'a>,
 }
 
-impl File<'_> {
-    pub async fn encrypt(&mut self) -> APIResult<Bytes> {
-        // Ok(self.field.bytes().await?)
-        todo!()
-    }
-}
-
 #[derive(Clone)]
 pub struct DocDepotService {
     pub container_client: ContainerClient,
 }
+
 impl DocDepotService {
     pub fn new(container_name: String) -> Self {
         Self {

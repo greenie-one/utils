@@ -1,4 +1,4 @@
-use crate::{dtos::token_claims::TokenClaims, errors::api_errors::APIError};
+use crate::{structs::token_claims::TokenClaims, errors::api_errors::APIError};
 use crate::errors::api_errors::APIResult;
 use crate::services::doc_depot::DocDepotService;
 use crate::utils::validate_field::validate_pdf_field;

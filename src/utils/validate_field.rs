@@ -1,4 +1,4 @@
-use crate::dtos::token_claims::TokenClaims;
+use crate::structs::token_claims::TokenClaims;
 use crate::errors::api_errors::APIResult;
 use crate::errors::api_errors::APIError;
 

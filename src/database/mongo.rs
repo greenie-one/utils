@@ -1,6 +1,7 @@
 use mongodb::{Client, Database, options::ClientOptions};
 use std::env;
 
+#[derive(Clone)]
 pub struct MongoDB {
     pub connection: Database,
 }
