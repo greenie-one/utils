@@ -1,7 +1,8 @@
-use std::time::{UNIX_EPOCH, SystemTime};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::env_config::DECODE_KEY;
 use crate::errors::api_errors::{APIError, APIResult};
+use crate::state::app_state::UplaodState;
 use crate::structs::download_token::DownloadToken;
 use axum::body::StreamBody;
 use axum::response::IntoResponse;
@@ -10,7 +11,8 @@ use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::ClientBuilder;
 use azure_storage_blobs::prelude::ContainerClient;
 use futures_util::StreamExt;
-use jsonwebtoken::{Validation, Algorithm, TokenData, decode};
+use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
+use mongodb::bson::doc;
 
 pub struct File<'a> {
     pub name: String,
@@ -57,7 +59,8 @@ impl DocDepotService {
 
     pub fn validate_token(token: String) -> APIResult<String> {
         let validation = Validation::new(Algorithm::RS256);
-        let token_claims: TokenData<DownloadToken> = decode(token.as_ref(), &DECODE_KEY, &validation)?;
+        let token_claims: TokenData<DownloadToken> =
+            decode(token.as_ref(), &DECODE_KEY, &validation)?;
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         if token_claims.claims.exp < now {
@@ -69,26 +72,40 @@ impl DocDepotService {
 }
 
 impl DocDepotService {
+    pub async fn file_exists(&self, file_name: String, state: UplaodState) -> APIResult<bool> {
+        let container_name = self.container_client.container_name();
+        let blob_client = self.container_client.blob_client(file_name.clone());
+        let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
+        if blob_client.exists().await? {
+            let doc = state
+                .document_collection
+                .find_one(
+                    doc! {
+                        "privateUrl": url.clone()
+                    },
+                    None,
+                )
+                .await?;
+            if doc.is_none() {
+                return Err(APIError::FileAlreadyExists);
+            }
+        }
+        Ok(false)
+    }
+
     pub async fn upload_file<'a>(&mut self, file: File<'a>) -> APIResult<String> {
         let file_name = &file.name;
         let content_type = &file.content_type;
 
         let blob_client = self.container_client.blob_client(file_name);
-
-        if blob_client.exists().await? {
-            return Err(APIError::FileAlreadyExists);
-        }
-
         blob_client
             .put_block_blob(file.field.bytes().await?)
             .content_type(content_type)
             .await?;
 
         let container_name = self.container_client.container_name();
-        Ok(Self::constuct_url(
-            container_name.to_string(),
-            file_name.to_string(),
-        ))
+        let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
+        Ok(url)
     }
 
     pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
@@ -111,7 +128,7 @@ impl DocDepotService {
             (header::CONTENT_TYPE, content_type),
             (
                 header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{}\"", file_name),
+                format!("filename=\"{}\"", file_name),
             ),
         ];
         Ok((headers, stream_body))

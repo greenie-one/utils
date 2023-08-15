@@ -1,14 +1,19 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::APIResult;
 use crate::services::doc_depot::DocDepotService;
+use crate::state::app_state::UplaodState;
 use crate::utils::validate_field::validate_pdf_field;
 use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};
-use axum::extract::{Multipart, Path, Query};
+use axum::extract::{Multipart, Path, Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
 use serde_json::{json, Value};
 
-pub async fn upload(user_details: TokenClaims, mut multipart: Multipart) -> APIResult<Json<Value>> {
+pub async fn upload(
+    State(state): State<UplaodState>,
+    user_details: TokenClaims,
+    mut multipart: Multipart,
+) -> APIResult<Json<Value>> {
     let mut service = DocDepotService::new(user_details.sub.clone());
     if !service.container_client.exists().await? {
         service.container_client.create().await?;
@@ -18,8 +23,9 @@ pub async fn upload(user_details: TokenClaims, mut multipart: Multipart) -> APIR
         .next_field()
         .await?
         .ok_or_else(|| APIError::NoFileAttached)?;
-
     let file = validate_pdf_field(field)?;
+
+    service.file_exists(file.name.clone(), state).await?;
     let url = service.upload_file(file).await?;
 
     Ok(Json(json!({
@@ -36,7 +42,8 @@ pub async fn download(
     let service = match user_details {
         Some(user_details) => DocDepotService::new(user_details.sub),
         None => {
-            let private_url = DocDepotService::constuct_url(container_name.clone(), filename.clone());
+            let private_url =
+                DocDepotService::constuct_url(container_name.clone(), filename.clone());
             let token = query
                 .token
                 .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
