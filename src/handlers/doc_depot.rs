@@ -20,7 +20,6 @@ pub async fn upload(
 
     let file = validate_pdf_field(field)?;
     let url = service.upload_file(file).await?;
-    let url = url.as_ref();
 
     Ok(Json(json!({
         "message": "File uploaded successfully",
@@ -30,11 +29,10 @@ pub async fn upload(
 
 pub async fn download(
     user_details: TokenClaims,
-    Path(file_name): Path<String>,
+    Path(url): Path<String>,
 ) -> APIResult<impl IntoResponse> {
     let service = DocDepotService::new(user_details.sub.clone());
-
-    let response = service.download_file(file_name).await?;
-
+    let file_name = url.split("/").last().unwrap();
+    let response = service.download_file(file_name.to_owned()).await?;
     Ok(response)
 }

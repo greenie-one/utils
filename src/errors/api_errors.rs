@@ -14,6 +14,7 @@ pub enum APIError {
     PayloadTooLarge,
     NoFileAttached,
     InvalidFileName,
+    FileNotFound,
     InvalidContentType,
     InavlidFileExtension,
     InternalServerError(String),
@@ -127,7 +128,12 @@ impl From<APIError> for ErrorMessages {
                 message: "User already exists".to_string(),
                 status_code: axum::http::StatusCode::BAD_REQUEST,
                 code: "GRA0003",
-            }
+            },
+            APIError::FileNotFound => ErrorMessages {
+                message: "File not found".to_string(),
+                status_code: axum::http::StatusCode::NOT_FOUND,
+                code: "GR1009",
+            },
         }
     }
 }
