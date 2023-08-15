@@ -1,6 +1,6 @@
 use jsonwebtoken::DecodingKey;
 use lazy_static::lazy_static;
-use std::fs;
+use std::{fs, env};
 use tracing::info;
 
 lazy_static! {
@@ -17,7 +17,12 @@ lazy_static! {
 }
 
 fn get_keys() -> DecodingKey {
-    let public_key_pem = fs::read("./keys/doc_depot/public_key.pem").unwrap();
-    let public_key = DecodingKey::from_rsa_pem(&public_key_pem).unwrap();
+    let mut public_key_pem = env::var("JWT_PUBLIC_KEY").map(|v| v.as_bytes().to_vec());
+
+    if public_key_pem.is_err() {
+        public_key_pem = Ok(fs::read("./keys/doc_depot/public_key.pem").unwrap());
+    }
+
+    let public_key = DecodingKey::from_rsa_pem(&public_key_pem.unwrap()).unwrap();
     public_key
 }

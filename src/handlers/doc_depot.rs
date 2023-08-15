@@ -41,7 +41,6 @@ pub async fn download(
                 .token
                 .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
             let token_url = DocDepotService::validate_token(token)?;
-            println!("private_url: {}, token_url: {}", private_url, token_url);
             if private_url != token_url {
                 return Err(APIError::BadToken);
             }

@@ -37,20 +37,11 @@ spec:
             - name: APP_ENV
               value: {{ .Values.APP_ENV }}
 
-
-            {{ if eq .Values.APP_ENV "production" }}
-            - name: REDIS_USERNAME
+            - name: JWT_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
-                  name: redis-{{ .Values.APP_ENV }}-username
-                  key: value
-  
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: redis-{{ .Values.APP_ENV }}-password
-                  key: value
-            {{ end }}
+                  name: jwt-public-key
+                  key: public
 
           ports:
             - name: http
