@@ -45,12 +45,12 @@ impl DocDepotService {
     pub fn constuct_url(container_name: String, file_name: String) -> String {
         let env = std::env::var("APP_ENV").unwrap();
         let url = match env.as_str() {
-            "dev" => format!(
-                "https://dev-api.greenie.one/utils/doc_depot/{}/{}",
+            "production" => format!(
+                "https://api.greenie.one/utils/doc_depot/{}/{}",
                 container_name, file_name
             ),
             _ => format!(
-                "https://api.greenie.one/utils/doc_depot/{}/{}",
+                "https://dev-api.greenie.one/utils/doc_depot/{}/{}",
                 container_name, file_name
             ),
         };
@@ -128,7 +128,7 @@ impl DocDepotService {
             (header::CONTENT_TYPE, content_type),
             (
                 header::CONTENT_DISPOSITION,
-                format!("filename=\"{}\"", file_name),
+                format!("form-data; name=\"file\"; filename=\"{}\"", file_name),
             ),
         ];
         Ok((headers, stream_body))
