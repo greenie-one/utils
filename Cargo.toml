@@ -22,6 +22,8 @@ tracing = "0.1.27"
 futures-util = "0.3.28"
 aes-gcm = "0.10.2"
 bcrypt = { features = ["std"], default-features = false, version = "0.15.0" }
+url = "2.2"
+jsonwebtoken = { version = "8.3.0" }
 
 [dev-dependencies]
 anyhow = "1"

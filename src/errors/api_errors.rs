@@ -1,3 +1,5 @@
+use std::time::SystemTimeError;
+
 use axum::{
     extract::multipart::MultipartError,
     http::header,
@@ -14,16 +16,40 @@ pub enum APIError {
     PayloadTooLarge,
     NoFileAttached,
     InvalidFileName,
+    InvalidUrl,
     FileNotFound,
+    FileAlreadyExists,
     InvalidContentType,
     InavlidFileExtension,
     InternalServerError(String),
     UserAlreadyExists,
+    TokenExpired,
+    InvalidToken,
+    MissingQueryParams(String),
+    BadToken,
+}
+
+impl From<jsonwebtoken::errors::Error> for APIError {
+    fn from(_: jsonwebtoken::errors::Error) -> Self {
+        APIError::InvalidToken
+    }
+}
+    
+impl From<SystemTimeError> for APIError {
+    fn from(value: SystemTimeError) -> Self {
+        APIError::InternalServerError(format!("System Time Error: {:?}", value))
+    }
 }
 
 impl From<bcrypt::BcryptError> for APIError {
     fn from(value: bcrypt::BcryptError) -> Self {
         APIError::InternalServerError(format!("Bcrypt Error: {:?}", value))
+    }
+}
+
+impl From<url::ParseError> for APIError {
+    fn from(_: url::ParseError) -> Self {
+        APIError::InvalidUrl
     }
 }
 
@@ -133,6 +159,36 @@ impl From<APIError> for ErrorMessages {
                 message: "File not found".to_string(),
                 status_code: axum::http::StatusCode::NOT_FOUND,
                 code: "GR1009",
+            },
+            APIError::InvalidUrl => ErrorMessages {
+                message: "Invalid url".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR1010",
+            },
+            APIError::FileAlreadyExists => ErrorMessages {
+                message: "File already exists".to_string(),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR1011",
+            },
+            APIError::TokenExpired => ErrorMessages {
+                message: "Download Token expired".to_string(),
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                code: "GR1012",
+            },
+            APIError::InvalidToken => ErrorMessages {
+                message: "Invalid token".to_string(),
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                code: "GR1013",
+            },
+            APIError::MissingQueryParams(param) => ErrorMessages {
+                message: format!("Missing query param: {}", param),
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                code: "GR1014",
+            },
+            APIError::BadToken => ErrorMessages {
+                message: "Bad token".to_string(),
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                code: "GR1015",
             },
         }
     }
