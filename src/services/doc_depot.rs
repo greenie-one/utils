@@ -38,8 +38,8 @@ impl DocDepotService {
     pub fn constuct_url(&self, file_name: String) -> APIResult<String> {
         let env = std::env::var("APP_ENV").unwrap();
         let url = match env.as_str() {
-            "dev" => format!("https://dev-api.greenie.one/{}", file_name),
-            _ => format!("https://api.greenie.one/{}", file_name),
+            "dev" => format!("https://dev-api.greenie.one/doc_depot/{}", file_name),
+            _ => format!("https://api.greenie.one/doc_depot/{}", file_name),
         };
         Ok(url)
     }
