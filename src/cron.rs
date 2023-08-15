@@ -60,7 +60,7 @@ pub async fn list_blob_names(
     return Ok(files);
 }
 
-pub async fn fetch_private_urls() -> ServerResult<HashMap<String, HashSet<String>>> {
+pub async fn files_from_private_urls() -> ServerResult<HashMap<String, HashSet<String>>> {
     let client = MongoDB::new().await;
     let documents = client.connection.collection::<Document>("documents");
     // fetch all documents
@@ -69,13 +69,12 @@ pub async fn fetch_private_urls() -> ServerResult<HashMap<String, HashSet<String
     while let Some(result) = cursor.next().await {
         let document = result?;
         let url = document.get_str("privateUrl")?;
-        let split = url.split("/").collect::<Vec<&str>>();
-        let container = split[3].to_owned();
-        let file_name = split[4].to_owned();
+        let filename = url.split("/").last().unwrap();
+        let container = document.get_str("user")?;
         files
-            .entry(container)
+            .entry(container.to_string())
             .or_insert(HashSet::new())
-            .insert(file_name);
+            .insert(filename.to_string());
     }
     return Ok(files);
 }
@@ -110,11 +109,11 @@ pub async fn delete_blobs(container_name: String, blob_names: Vec<String>) {
 
 pub async fn cleanup() -> ServerResult<()> {
     let storage_container_names = fetch_container_names().await?;
-    let private_urls = fetch_private_urls().await?;
+    let db_files = files_from_private_urls().await?;
     let storage_container_names_set: HashSet<String> =
         storage_container_names.iter().map(|f| f.clone()).collect();
 
-    let db_container_names_set: HashSet<String> = private_urls.iter().map(|f| f.0.clone()).collect();
+    let db_container_names_set: HashSet<String> = db_files.iter().map(|f| f.0.clone()).collect();
     let difference = storage_container_names_set.difference(&db_container_names_set);
 
     let to_delete_containers: Vec<String> = difference.map(|f| f.clone()).collect();
@@ -123,7 +122,7 @@ pub async fn cleanup() -> ServerResult<()> {
     let mut join_set = tokio::task::JoinSet::new();
     let stored_files = list_blob_names(db_container_names_set.into_iter().collect()).await?;
     for (container_name, stored_file_names) in stored_files {
-        let db_file_names = private_urls.get(&container_name).ok_or_else(|| {
+        let db_file_names = db_files.get(&container_name).ok_or_else(|| {
             ServerError::AzureError(format!(
                 "No user found for container: {}",
                 container_name
