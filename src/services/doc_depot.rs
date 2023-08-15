@@ -41,7 +41,6 @@ impl DocDepotService {
         ClientBuilder::new(account, storage_credentials).container_client(container_name)
     }
 
-    // Constuct a custom url for api.greenie.one and dev-api.greenie.one to download files
     pub fn constuct_url(container_name: String, file_name: String) -> String {
         let env = std::env::var("APP_ENV").unwrap();
         let url = match env.as_str() {
