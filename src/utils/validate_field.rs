@@ -1,8 +1,8 @@
+use crate::structs::files::File;
 use crate::structs::token_claims::TokenClaims;
 use crate::errors::api_errors::APIResult;
 use crate::errors::api_errors::APIError;
 
-use crate::services::doc_depot::File;
 use axum::extract::multipart::Field;
 
 pub fn validate_image_field<'a>(field: Field<'a>, user_details: &TokenClaims) -> APIResult<File<'a>> {

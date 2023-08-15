@@ -1,24 +1,18 @@
 use std::time::{SystemTime, UNIX_EPOCH};
-
 use crate::env_config::DECODE_KEY;
 use crate::errors::api_errors::{APIError, APIResult};
 use crate::state::app_state::UplaodState;
 use crate::structs::download_token::DownloadToken;
+use crate::structs::files::File;
 use axum::body::StreamBody;
 use axum::response::IntoResponse;
-use axum::{extract::multipart::Field, http::header};
+use axum::http::header;
 use azure_storage::StorageCredentials;
 use azure_storage_blobs::prelude::ClientBuilder;
 use azure_storage_blobs::prelude::ContainerClient;
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
 use mongodb::bson::doc;
-
-pub struct File<'a> {
-    pub name: String,
-    pub content_type: String,
-    pub field: Field<'a>,
-}
 
 #[derive(Clone)]
 pub struct DocDepotService {
