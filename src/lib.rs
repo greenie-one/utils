@@ -1,12 +1,13 @@
 use axum::{routing::get, Router};
-use std::{net::SocketAddr, thread};
+use std::{net::SocketAddr, thread, time::Duration};
+use tokio::time;
 use tracing::{info, log::error, Level};
 use tracing_subscriber::{
     filter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
 
-use crate::services::file_handling::delete_message_consumer;
-
+pub(crate) mod database;
+pub(crate) mod structs;
 pub(crate) mod dtos;
 pub(crate) mod env_config;
 pub(crate) mod errors;
@@ -14,25 +15,33 @@ pub(crate) mod handlers;
 pub(crate) mod routes;
 pub(crate) mod services;
 pub(crate) mod state;
+pub(crate) mod utils;
+pub(crate) mod cron;
+pub(crate) mod models;
+
+const CRON_TIME_INTERVAL_IN_SEC: u64 = 60 * 60 * 24;
 
 pub async fn build_run() {
     env_config::load_env();
 
     let tracing_layer = tracing_subscriber::fmt::layer();
 
-    // Redis Pub Sub Service to monitor messages on doc_delete channel
     thread::spawn(move || {
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(async move {
-                for _ in 0..10 {
-                    info!("Starting Redis Pub Sub Service");
-                    let res = delete_message_consumer().await;
-                    if res.is_err() {
-                        error!("{}", format!("PubSub error: {:?}", res));
+                let cron = tokio::task::spawn(async {
+                    info!("Started cleanup job cron job");
+                    let mut interval = time::interval(Duration::from_secs(CRON_TIME_INTERVAL_IN_SEC));
+                    loop {
+                        interval.tick().await;
+                        let res = cron::cleanup().await;
+                        if let Err(e) = res {
+                            error!("Cleanup job failed: {}", e.to_string());
+                        }
                     }
-                }
-                error!("Redis PubSub max (10) restarts reached, exiting loop");
+                });
+                let _ = cron.await;
             });
     });
 
@@ -49,9 +58,12 @@ pub async fn build_run() {
 
     let pf_routes = routes::profile_picture::routes().await;
     let doc_depot_routes = routes::doc_depot::routes().await;
+    let admin_routes = routes::admin::routes().await;
+    
     let app = Router::new()
         .merge(pf_routes)
         .merge(doc_depot_routes)
+        .merge(admin_routes)
         .route("/health-check", get(|| async { "All Ok!" }))
         .layer(tower_http::trace::TraceLayer::new_for_http());
 

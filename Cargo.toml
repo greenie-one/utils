@@ -7,20 +7,21 @@ edition = "2021"
 tokio = { version = "1", features = ["full"] }
 
 axum = { version = "0.6.18", features = ["multipart", "headers", "macros"] }
-redis = { version = "0.23.0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 dotenv = "0.15.0"
-azure_storage_blobs = "0.12.0"
-azure_storage = "0.12.0"
-azure_core = "0.12.0"
+mongodb = { version = "2.5.0" }
+azure_storage_blobs = "0.13.1"
+azure_storage = "0.13.0"
+azure_core = "0.13.0"
 lazy_static = "1.4.0"
 async-trait = "0.1.68"
-time = "0.3.22"
 tracing-subscriber = "0.3.17"
 tower-http = { version = "0.4.0", features = ["trace"] }
 tracing = "0.1.27"
-chrono = { version = "0.4.26", features = ["serde"] }
+futures-util = "0.3.28"
+aes-gcm = "0.10.2"
+bcrypt = { features = ["std"], default-features = false, version = "0.15.0" }
 
 [dev-dependencies]
 anyhow = "1"
