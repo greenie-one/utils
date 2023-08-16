@@ -34,6 +34,18 @@ impl From<jsonwebtoken::errors::Error> for APIError {
         APIError::InvalidToken
     }
 }
+
+impl From<mongodb::bson::ser::Error> for APIError {
+    fn from(value: mongodb::bson::ser::Error) -> Self {
+        APIError::InternalServerError(format!("BSON Error: {:?}", value))
+    }
+}
+
+impl From<mongodb::bson::oid::Error> for APIError {
+    fn from(value: mongodb::bson::oid::Error) -> Self {
+        APIError::InternalServerError(format!("BSON Error: {:?}", value))
+    }
+}
     
 impl From<SystemTimeError> for APIError {
     fn from(value: SystemTimeError) -> Self {

@@ -1,6 +1,6 @@
 use mongodb::bson::Document;
 
-use crate::{services::{file_storage::FileStorageService, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::Nonces};
+use crate::{services::{file_storage::FileStorageService, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::UserNonce};
 
 #[derive(Clone)]
 pub struct FileStorageState {
@@ -8,12 +8,12 @@ pub struct FileStorageState {
 }
 
 #[derive(Clone)]
-pub struct UplaodState {
+pub struct DocDepotState {
     pub document_collection: mongodb::Collection<Document>,
-    pub nonce_collection: mongodb::Collection<Nonces>,
+    pub nonce_collection: mongodb::Collection<UserNonce>,
 }
 
-impl UplaodState {
+impl DocDepotState {
     pub async fn new() -> Self {
         let db = MongoDB::new().await;
         Self {

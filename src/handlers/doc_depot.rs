@@ -1,7 +1,8 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::APIResult;
+use crate::models::user_nonces::UserNonce;
 use crate::services::file_storage::FileStorageService;
-use crate::state::app_state::UplaodState;
+use crate::state::app_state::DocDepotState;
 use crate::utils::validate_field::validate_pdf_field;
 use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};
 use axum::extract::{Multipart, Path, Query, State};
@@ -10,7 +11,7 @@ use axum::Json;
 use serde_json::{json, Value};
 
 pub async fn upload(
-    State(state): State<UplaodState>,
+    State(state): State<DocDepotState>,
     user_details: TokenClaims,
     mut multipart: Multipart,
 ) -> APIResult<Json<Value>> {
@@ -23,10 +24,12 @@ pub async fn upload(
         .next_field()
         .await?
         .ok_or_else(|| APIError::NoFileAttached)?;
-    let file = validate_pdf_field(field)?;
 
-    service.file_exists(file.name.clone(), state).await?;
-    let url = service.upload_file(file).await?;
+    let file = validate_pdf_field(field)?;
+    service.file_exists(file.name.clone(), state.document_collection).await?;
+
+    let user_nonce = UserNonce::create_or_fetch(user_details.sub.clone(), state.nonce_collection).await?;
+    let url = service.upload_file_encrypted(file, user_nonce.nonce).await?;
 
     Ok(Json(json!({
         "message": "File uploaded successfully",
@@ -35,6 +38,7 @@ pub async fn upload(
 }
 
 pub async fn download(
+    State(state): State<DocDepotState>,
     user_details: Option<TokenClaims>,
     Path((container_name, filename)): Path<(String, String)>,
     Query(query): Query<DownloadDTO>,
@@ -55,6 +59,7 @@ pub async fn download(
         }
     };
 
-    let response = service.download_file(filename.to_owned()).await?;
+    let user_nonce = UserNonce::fetch(container_name, state.nonce_collection).await?;
+    let response = service.download_file_decrypted(filename.to_owned(), user_nonce.nonce).await?;
     Ok(response)
 }

@@ -1,7 +1,5 @@
-use crate::database::mongo::MongoDB;
 use crate::env_config::DECODE_KEY;
 use crate::errors::api_errors::{APIError, APIResult};
-use crate::state::app_state::UplaodState;
 use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
 use axum::body::StreamBody;
@@ -13,7 +11,8 @@ use azure_storage_blobs::prelude::ClientBuilder;
 use azure_storage_blobs::prelude::ContainerClient;
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
-use mongodb::bson::doc;
+use mongodb::bson::{doc, Document};
+use mongodb::Collection;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone)]
@@ -67,13 +66,16 @@ impl FileStorageService {
 }
 
 impl FileStorageService {
-    pub async fn file_exists(&self, file_name: String, state: UplaodState) -> APIResult<bool> {
+    pub async fn file_exists(
+        &self,
+        file_name: String,
+        document_collection: Collection<Document>,
+    ) -> APIResult<bool> {
         let container_name = self.container_client.container_name();
         let blob_client = self.container_client.blob_client(file_name.clone());
         let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
         if blob_client.exists().await? {
-            let doc = state
-                .document_collection
+            let doc = document_collection
                 .find_one(
                     doc! {
                         "privateUrl": url.clone()
@@ -141,20 +143,20 @@ impl FileStorageService {
         Ok(blob)
     }
 
-    pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
-        let blob = self.fetch_file(file_name).await?;
-        let content_type = blob.blob.properties.content_type;
-        let file_name = blob.blob.name;
-        let stream_body = StreamBody::new(blob.data);
-        let headers = [
-            (header::CONTENT_TYPE, content_type),
-            (
-                header::CONTENT_DISPOSITION,
-                format!("form-data; name=\"file\"; filename=\"{}\"", file_name),
-            ),
-        ];
-        Ok((headers, stream_body))
-    }
+    // pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
+    //     let blob = self.fetch_file(file_name).await?;
+    //     let content_type = blob.blob.properties.content_type;
+    //     let file_name = blob.blob.name;
+    //     let stream_body = StreamBody::new(blob.data);
+    //     let headers = [
+    //         (header::CONTENT_TYPE, content_type),
+    //         (
+    //             header::CONTENT_DISPOSITION,
+    //             format!("form-data; name=\"file\"; filename=\"{}\"", file_name),
+    //         ),
+    //     ];
+    //     Ok((headers, stream_body))
+    // }
 
     pub async fn download_file_decrypted(
         &self,
@@ -165,7 +167,10 @@ impl FileStorageService {
 
         let content_type = blob.blob.properties.content_type;
         let file_name = blob.blob.name;
-        let stream_body = StreamBody::new(blob.data);
+        let data = blob.data.collect().await?.to_vec();
+
+        let body = File::decrypt(nonce, data)?;
+
         let headers = [
             (header::CONTENT_TYPE, content_type),
             (
@@ -173,6 +178,6 @@ impl FileStorageService {
                 format!("form-data; name=\"file\"; filename=\"{}\"", file_name),
             ),
         ];
-        Ok((headers, stream_body))
+        Ok((headers, body))
     }
 }
