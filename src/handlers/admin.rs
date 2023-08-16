@@ -15,7 +15,7 @@ pub async fn create_account(
         return Err(APIError::Unauthorized);
     }
 
-    if !(create_user.roles.contains(&"admin".to_owned())) {
+    if create_user.roles.contains(&"admin".to_owned()) {
         return Err(APIError::Unauthorized);
     }
 
