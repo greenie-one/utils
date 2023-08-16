@@ -1,2 +1,2 @@
-pub mod doc_depot;
+pub mod file_storage;
 pub mod admin;

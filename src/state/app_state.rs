@@ -1,23 +1,24 @@
 use mongodb::bson::Document;
 
-use crate::{services::{doc_depot::DocDepotService, admin::AdminService}, database::mongo::MongoDB};
+use crate::{services::{file_storage::FileStorageService, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::Nonces};
 
 #[derive(Clone)]
-pub struct DocDepotState {
-    pub service: DocDepotService,
+pub struct FileStorageState {
+    pub service: FileStorageService,
 }
 
 #[derive(Clone)]
 pub struct UplaodState {
-    pub document_collection: mongodb::Collection<Document>
+    pub document_collection: mongodb::Collection<Document>,
+    pub nonce_collection: mongodb::Collection<Nonces>,
 }
 
 impl UplaodState {
     pub async fn new() -> Self {
         let db = MongoDB::new().await;
-        let document_collection = db.connection.collection("documents");
         Self {
-            document_collection
+            document_collection: db.connection.collection("documents"),
+            nonce_collection: db.connection.collection("nonces"),
         }
     }
 }

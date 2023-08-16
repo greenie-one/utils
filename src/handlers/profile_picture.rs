@@ -1,6 +1,6 @@
 use crate::structs::token_claims::TokenClaims;
 use crate::utils::validate_field::validate_image_field;
-use crate::state::app_state::DocDepotState;
+use crate::state::app_state::FileStorageState;
 use crate::errors::api_errors::{APIResult, APIError};
 
 use axum::extract::Multipart;
@@ -8,7 +8,7 @@ use axum::{extract::State, Json};
 use serde_json::{json, Value};
 
 pub async fn upload(
-    State(mut state): State<DocDepotState>,
+    State(mut state): State<FileStorageState>,
     user_details: TokenClaims,
     mut multipart: Multipart,
 ) -> APIResult<Json<Value>> {

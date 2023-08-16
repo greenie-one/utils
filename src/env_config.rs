@@ -1,7 +1,7 @@
-use aes_gcm::Aes256Gcm;
+use chacha20poly1305::XChaCha20Poly1305;
 use jsonwebtoken::DecodingKey;
 use lazy_static::lazy_static;
-use std::{fs, env};
+use std::{env, fs};
 use tracing::info;
 
 use crate::utils::encrypt::get_cipher;
@@ -9,7 +9,7 @@ use crate::utils::encrypt::get_cipher;
 lazy_static! {
     pub static ref APP_ENV: String = std::env::var("APP_ENV").expect("APP_ENV should be defined");
     pub static ref DECODE_KEY: DecodingKey = get_keys();
-    pub static ref CIPER: Aes256Gcm = get_cipher();
+    pub static ref CIPHER: XChaCha20Poly1305 = get_cipher();
 }
 
 pub fn load_env() {

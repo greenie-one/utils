@@ -1,25 +1,27 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::database::mongo::MongoDB;
 use crate::env_config::DECODE_KEY;
 use crate::errors::api_errors::{APIError, APIResult};
 use crate::state::app_state::UplaodState;
 use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
 use axum::body::StreamBody;
-use axum::response::IntoResponse;
 use axum::http::header;
+use axum::response::IntoResponse;
 use azure_storage::StorageCredentials;
+use azure_storage_blobs::blob::operations::GetBlobResponse;
 use azure_storage_blobs::prelude::ClientBuilder;
 use azure_storage_blobs::prelude::ContainerClient;
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
 use mongodb::bson::doc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone)]
-pub struct DocDepotService {
+pub struct FileStorageService {
     pub container_client: ContainerClient,
 }
 
-impl DocDepotService {
+impl FileStorageService {
     pub fn new(container_name: String) -> Self {
         Self {
             container_client: Self::get_container_client(container_name),
@@ -64,7 +66,7 @@ impl DocDepotService {
     }
 }
 
-impl DocDepotService {
+impl FileStorageService {
     pub async fn file_exists(&self, file_name: String, state: UplaodState) -> APIResult<bool> {
         let container_name = self.container_client.container_name();
         let blob_client = self.container_client.blob_client(file_name.clone());
@@ -85,12 +87,15 @@ impl DocDepotService {
         }
         Ok(false)
     }
+}
 
+impl FileStorageService {
     pub async fn upload_file<'a>(&mut self, file: File<'a>) -> APIResult<String> {
-        let file_name = &file.name;
-        let content_type = &file.content_type;
+        let file_name = &file.name.clone();
+        let content_type = &file.content_type.clone();
 
         let blob_client = self.container_client.blob_client(file_name);
+
         blob_client
             .put_block_blob(file.field.bytes().await?)
             .content_type(content_type)
@@ -101,9 +106,28 @@ impl DocDepotService {
         Ok(url)
     }
 
-    pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
+    pub async fn upload_file_encrypted<'a>(
+        &mut self,
+        file: File<'a>,
+        nonce: Vec<u8>,
+    ) -> APIResult<String> {
+        let file_name = &file.name.clone();
+        let content_type = &file.content_type.clone();
+
         let blob_client = self.container_client.blob_client(file_name);
 
+        blob_client
+            .put_block_blob(file.encrypt(nonce).await?)
+            .content_type(content_type)
+            .await?;
+
+        let container_name = self.container_client.container_name();
+        let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
+        Ok(url)
+    }
+
+    async fn fetch_file(&self, file_name: String) -> APIResult<GetBlobResponse> {
+        let blob_client = self.container_client.blob_client(file_name);
         if blob_client.exists().await? == false {
             return Err(APIError::FileNotFound);
         }
@@ -113,6 +137,31 @@ impl DocDepotService {
             .next()
             .await
             .ok_or_else(|| APIError::InternalServerError("No data found".to_string()))??;
+
+        Ok(blob)
+    }
+
+    pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
+        let blob = self.fetch_file(file_name).await?;
+        let content_type = blob.blob.properties.content_type;
+        let file_name = blob.blob.name;
+        let stream_body = StreamBody::new(blob.data);
+        let headers = [
+            (header::CONTENT_TYPE, content_type),
+            (
+                header::CONTENT_DISPOSITION,
+                format!("form-data; name=\"file\"; filename=\"{}\"", file_name),
+            ),
+        ];
+        Ok((headers, stream_body))
+    }
+
+    pub async fn download_file_decrypted(
+        &self,
+        file_name: String,
+        nonce: Vec<u8>,
+    ) -> APIResult<impl IntoResponse> {
+        let blob = self.fetch_file(file_name).await?;
 
         let content_type = blob.blob.properties.content_type;
         let file_name = blob.blob.name;

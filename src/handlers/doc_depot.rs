@@ -1,6 +1,6 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::APIResult;
-use crate::services::doc_depot::DocDepotService;
+use crate::services::file_storage::FileStorageService;
 use crate::state::app_state::UplaodState;
 use crate::utils::validate_field::validate_pdf_field;
 use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};
@@ -14,7 +14,7 @@ pub async fn upload(
     user_details: TokenClaims,
     mut multipart: Multipart,
 ) -> APIResult<Json<Value>> {
-    let mut service = DocDepotService::new(user_details.sub.clone());
+    let mut service = FileStorageService::new(user_details.sub.clone());
     if !service.container_client.exists().await? {
         service.container_client.create().await?;
     }
@@ -40,18 +40,18 @@ pub async fn download(
     Query(query): Query<DownloadDTO>,
 ) -> APIResult<impl IntoResponse> {
     let service = match user_details {
-        Some(user_details) => DocDepotService::new(user_details.sub),
+        Some(user_details) => FileStorageService::new(user_details.sub),
         None => {
             let private_url =
-                DocDepotService::constuct_url(container_name.clone(), filename.clone());
+                FileStorageService::constuct_url(container_name.clone(), filename.clone());
             let token = query
                 .token
                 .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-            let token_url = DocDepotService::validate_token(token)?;
+            let token_url = FileStorageService::validate_token(token)?;
             if private_url != token_url {
                 return Err(APIError::BadToken);
             }
-            DocDepotService::new(container_name.clone())
+            FileStorageService::new(container_name.clone())
         }
     };
 
