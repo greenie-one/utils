@@ -6,12 +6,16 @@ use axum::extract::State;
 use axum::Json;
 use serde_json::{json, Value};
 
-pub async fn create_hr_profile(
+pub async fn create_account(
     State(state): State<AdminState>,
     user_details: TokenClaims,
     Json(create_user): Json<CreateUser>,
 ) -> APIResult<Json<Value>> {
     if !(user_details.roles.contains(&"admin".to_owned())) {
+        return Err(APIError::Unauthorized);
+    }
+
+    if !(create_user.roles.contains(&"admin".to_owned())) {
         return Err(APIError::Unauthorized);
     }
 
