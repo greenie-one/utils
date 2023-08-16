@@ -43,6 +43,12 @@ spec:
                   name: jwt-public-key
                   key: public
 
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-private-key
+                  key: private
+
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}

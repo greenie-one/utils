@@ -23,7 +23,7 @@ impl AdminService {
         Ok(bcrypt::hash(password, bcrypt::DEFAULT_COST)?)
     }
 
-    pub async fn create_hr_profile(&self, create_user: CreateUser) -> APIResult<()> {
+    pub async fn create_account(&self, create_user: CreateUser) -> APIResult<()> {
         let user: Option<UserModel> = self.user_collection.find_one(doc!{"email": &create_user.email}, None).await?;
 
         if user.is_some() {

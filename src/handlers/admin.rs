@@ -11,11 +11,11 @@ pub async fn create_hr_profile(
     user_details: TokenClaims,
     Json(create_user): Json<CreateUser>,
 ) -> APIResult<Json<Value>> {
-    if !(user_details.roles.into_iter().any(|role| role == "admin")) {
+    if !(user_details.roles.contains(&"admin".to_owned())) {
         return Err(APIError::Unauthorized);
     }
 
-    state.service.create_hr_profile(create_user).await?;
+    state.service.create_account(create_user).await?;
 
     Ok(Json(json!({
         "message": "HR profile created successfully"
