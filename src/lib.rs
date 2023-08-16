@@ -79,5 +79,4 @@ pub async fn build_run() {
         .serve(app.into_make_service())
         .await
         .expect("Failed to start server");
-    print!("Server stopped");
 }

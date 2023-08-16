@@ -28,13 +28,13 @@ impl UserNonce {
         collection: Collection<UserNonce>,
     ) -> APIResult<UserNonce> {
         let nonce = collection
-            .find_one(doc! {"user_id": user_id.clone()}, None)
+            .find_one(doc! {"user_id": ObjectId::from_str(&user_id)?}, None)
             .await?;
         match nonce {
             Some(nonce) => Ok(nonce),
             None => {
                 let nonce = UserNonce::new(ObjectId::from_str(&user_id)?, generate_nonce());
-                nonce.create(collection).await?;
+                collection.insert_one(nonce.clone(), None).await?;
                 Ok(nonce)
             }
         }
@@ -42,7 +42,7 @@ impl UserNonce {
 
     pub async fn fetch(user_id: String, collection: Collection<UserNonce>) -> APIResult<UserNonce> {
         let nonce = collection
-            .find_one(doc! {"user_id": user_id.clone()}, None)
+            .find_one(doc! {"user_id": ObjectId::from_str(&user_id)?}, None)
             .await?;
         match nonce {
             Some(nonce) => Ok(nonce),
@@ -51,10 +51,5 @@ impl UserNonce {
                 Err(APIError::FileNotFound)?
             }
         }
-    }
-
-    pub async fn create(&self, collection: Collection<UserNonce>) -> APIResult<()> {
-        collection.insert_one(self, None).await?;
-        Ok(())
     }
 }
