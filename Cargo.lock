@@ -2592,6 +2592,7 @@ dependencies = [
  "jsonwebtoken",
  "lazy_static",
  "mongodb",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",

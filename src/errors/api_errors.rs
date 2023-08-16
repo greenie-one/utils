@@ -1,4 +1,4 @@
-use std::time::SystemTimeError;
+use std::{time::SystemTimeError, fmt::Display};
 
 use axum::{
     extract::multipart::MultipartError,
@@ -100,8 +100,15 @@ impl From<serde_json::Error> for APIError {
 
 impl IntoResponse for APIError {
     fn into_response(self) -> Response {
-        let error_msg: ErrorMessages = self.into();
+        let error_msg: ErrorMessages = (&self).into();
         error_msg.into_response()
+    }
+}
+
+impl Display for APIError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_msg: ErrorMessages = self.into();
+        write!(f, "{}", error_msg.to_json())
     }
 }
 
@@ -121,8 +128,8 @@ impl ErrorMessages {
     }
 }
 
-impl From<APIError> for ErrorMessages {
-    fn from(value: APIError) -> Self {
+impl From<&APIError> for ErrorMessages {
+    fn from(value: &APIError) -> Self {
         match value {
             APIError::Unauthorized => ErrorMessages {
                 message: "Unauthorized".to_string(),

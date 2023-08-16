@@ -18,6 +18,7 @@ pub(crate) mod state;
 pub(crate) mod utils;
 pub(crate) mod cron;
 pub(crate) mod models;
+pub(crate) mod remote;
 
 const CRON_TIME_INTERVAL_IN_SEC: u64 = 60 * 60 * 24;
 
@@ -59,11 +60,13 @@ pub async fn build_run() {
     let pf_routes = routes::profile_picture::routes().await;
     let doc_depot_routes = routes::doc_depot::routes().await;
     let admin_routes = routes::admin::routes().await;
+    let leads = routes::leads::routes().await;
     
     let app = Router::new()
         .merge(pf_routes)
         .merge(doc_depot_routes)
         .merge(admin_routes)
+        .merge(leads)
         .route("/health-check", get(|| async { "All Ok!" }))
         .layer(tower_http::trace::TraceLayer::new_for_http());
 

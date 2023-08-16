@@ -1,6 +1,5 @@
 use mongodb::bson::Document;
-
-use crate::{services::{file_storage::FileStorageService, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::UserNonce};
+use crate::{services::{file_storage::FileStorageService, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::UserNonce, remote::emailer::Emailer};
 
 #[derive(Clone)]
 pub struct FileStorageState {
@@ -32,6 +31,21 @@ impl AdminState {
     pub async fn new() -> Self {
         Self {
             service: AdminService::new().await,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct LeadState {
+    pub service: FileStorageService,
+    pub emailer: Emailer,
+}
+
+impl LeadState {
+    pub fn new() -> Self {
+        Self {
+            service: FileStorageService::new("leads".into()),
+            emailer: Emailer::new(),
         }
     }
 }

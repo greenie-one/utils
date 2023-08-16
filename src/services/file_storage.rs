@@ -1,4 +1,4 @@
-use crate::env_config::DECODE_KEY;
+use crate::env_config::JWT_KEYS;
 use crate::errors::api_errors::{APIError, APIResult};
 use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
@@ -27,6 +27,18 @@ impl FileStorageService {
         }
     }
 
+    pub fn from_token(token: String, container_name: String, filename: String) -> APIResult<Self> {
+        let private_url =
+            FileStorageService::constuct_url(container_name.clone(), filename);
+        let token_url = FileStorageService::validate_token(token)?;
+        if private_url != token_url {
+            return Err(APIError::BadToken);
+        }
+        Ok(FileStorageService::new(container_name))
+    }
+}
+
+impl FileStorageService {
     pub fn get_container_client(container_name: String) -> ContainerClient {
         let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
         let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
@@ -54,7 +66,7 @@ impl FileStorageService {
     pub fn validate_token(token: String) -> APIResult<String> {
         let validation = Validation::new(Algorithm::RS256);
         let token_claims: TokenData<DownloadToken> =
-            decode(token.as_ref(), &DECODE_KEY, &validation)?;
+            decode(token.as_ref(), &JWT_KEYS.decode_key, &validation)?;
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         if token_claims.claims.exp < now {
@@ -66,7 +78,7 @@ impl FileStorageService {
 }
 
 impl FileStorageService {
-    pub async fn file_exists(
+    pub async fn check_doc_exists(
         &self,
         file_name: String,
         document_collection: Collection<Document>,

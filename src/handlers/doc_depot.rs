@@ -3,7 +3,7 @@ use crate::errors::api_errors::APIResult;
 use crate::models::user_nonces::UserNonce;
 use crate::services::file_storage::FileStorageService;
 use crate::state::app_state::DocDepotState;
-use crate::utils::validate_field::validate_pdf_field;
+use crate::structs::files::File;
 use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};
 use axum::extract::{Multipart, Path, Query, State};
 use axum::response::IntoResponse;
@@ -25,11 +25,18 @@ pub async fn upload(
         .await?
         .ok_or_else(|| APIError::NoFileAttached)?;
 
-    let file = validate_pdf_field(field)?;
-    service.file_exists(file.name.clone(), state.document_collection).await?;
+    let file: File<'_> = File::try_from(field)?;
+    file.validate_pdf()?;
 
-    let user_nonce = UserNonce::create_or_fetch(user_details.sub.clone(), state.nonce_collection).await?;
-    let url = service.upload_file_encrypted(file, user_nonce.nonce).await?;
+    service
+        .check_doc_exists(file.name.clone(), state.document_collection)
+        .await?;
+
+    let user_nonce =
+        UserNonce::create_or_fetch(user_details.sub.clone(), state.nonce_collection).await?;
+    let url = service
+        .upload_file_encrypted(file, user_nonce.nonce)
+        .await?;
 
     Ok(Json(json!({
         "message": "File uploaded successfully",
@@ -46,20 +53,16 @@ pub async fn download(
     let service = match user_details {
         Some(user_details) => FileStorageService::new(user_details.sub),
         None => {
-            let private_url =
-                FileStorageService::constuct_url(container_name.clone(), filename.clone());
             let token = query
                 .token
                 .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-            let token_url = FileStorageService::validate_token(token)?;
-            if private_url != token_url {
-                return Err(APIError::BadToken);
-            }
-            FileStorageService::new(container_name.clone())
+            FileStorageService::from_token(token, container_name.clone(), filename.clone())?
         }
     };
 
     let user_nonce = UserNonce::fetch(container_name, state.nonce_collection).await?;
-    let response = service.download_file_decrypted(filename.to_owned(), user_nonce.nonce).await?;
+    let response = service
+        .download_file_decrypted(filename.to_owned(), user_nonce.nonce)
+        .await?;
     Ok(response)
 }
