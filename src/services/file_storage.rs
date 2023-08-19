@@ -95,7 +95,7 @@ impl FileStorageService {
                     None,
                 )
                 .await?;
-            if doc.is_none() {
+            if doc.is_some() {
                 return Err(APIError::FileAlreadyExists);
             }
         }
