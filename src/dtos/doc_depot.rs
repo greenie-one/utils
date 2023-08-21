@@ -1,22 +1,6 @@
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Deserialize, Serialize)]
-pub enum DocumentType {
-    #[serde(rename = "work")]
-    WORK,
-    #[serde(rename = "certificate")]
-    CERTIFICATE,
-    #[serde(rename = "marksheet")]
-    MARKSHEET,
-    #[serde(rename = "tax")]
-    TAX,
-    #[serde(rename = "education")]
-    EDUCATION,
-    #[serde(rename = "other")]
-    OTHER,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DocQuery {
-    pub doc_type: DocumentType,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DownloadDTO {
+    pub token: Option<String>,
 }

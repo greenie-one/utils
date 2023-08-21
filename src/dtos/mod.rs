@@ -1,3 +1,2 @@
-pub mod token_claims;
+pub mod admin;
 pub mod doc_depot;
-pub mod redis_values;

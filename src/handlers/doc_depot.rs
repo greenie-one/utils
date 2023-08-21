@@ -1,55 +1,68 @@
-use crate::dtos::redis_values::FileStatus;
-use crate::dtos::token_claims::TokenClaims;
-use crate::env_config::FILE_VALIDATION_TIMEOUT;
-use crate::errors::Result;
-use crate::services::file_handling::{
-    get_container_client, monitor_file_commit, upload_file_chunked,
-};
-use crate::services::validate_field::validate_pdf_field;
-use crate::state::app_state::FileHandlerState;
-use axum::extract::{Multipart, State};
+use crate::dtos::doc_depot::DownloadDTO;
+use crate::errors::api_errors::APIResult;
+use crate::models::user_nonces::UserNonce;
+use crate::services::file_storage::FileStorageService;
+use crate::state::app_state::DocDepotState;
+use crate::structs::files::File;
+use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};
+use axum::extract::{Multipart, Path, Query, State};
+use axum::response::IntoResponse;
 use axum::Json;
-
-use chrono::Utc;
-use redis::Commands;
 use serde_json::{json, Value};
 
 pub async fn upload(
-    State(mut state): State<FileHandlerState>,
+    State(state): State<DocDepotState>,
     user_details: TokenClaims,
     mut multipart: Multipart,
-) -> Result<Json<Value>> {
-    let mut container_client = get_container_client(user_details.sub.clone());
-    if !container_client.exists().await? {
-        container_client.create().await?;
+) -> APIResult<Json<Value>> {
+    let mut service = FileStorageService::new(user_details.sub.clone());
+    if !service.container_client.exists().await? {
+        service.container_client.create().await?;
     }
 
-    let field = multipart.next_field().await.unwrap().unwrap();
+    let field = multipart
+        .next_field()
+        .await?
+        .ok_or_else(|| APIError::NoFileAttached)?;
 
-    let mut file = validate_pdf_field(field)?;
-    let url = upload_file_chunked(&mut file, &mut container_client).await?;
-    let url = url.as_ref();
+    let file: File<'_> = File::try_from(field)?;
+    file.validate_pdf()?;
 
-    state.redis_client.set_ex(
-        url,
-        serde_json::to_string(&FileStatus {
-            commited: false,
-            upload_time: Utc::now(),
-        })
-        .unwrap(),
-        (*FILE_VALIDATION_TIMEOUT + 60) as usize,
-    )?;
+    service
+        .check_doc_exists(file.name.clone(), state.document_collection)
+        .await?;
 
-    monitor_file_commit(
-        file.name,
-        container_client,
-        state.redis_client,
-        url.to_string(),
-        *FILE_VALIDATION_TIMEOUT,
-    );
+    let user_nonce =
+        UserNonce::create_or_fetch(user_details.sub.clone(), state.nonce_collection).await?;
+    let url = service
+        .upload_file_encrypted(file, user_nonce.nonce)
+        .await?;
 
     Ok(Json(json!({
         "message": "File uploaded successfully",
         "url": url
     })))
+}
+
+pub async fn download(
+    State(state): State<DocDepotState>,
+    user_details: Option<TokenClaims>,
+    Path((container_name, filename)): Path<(String, String)>,
+    Query(query): Query<DownloadDTO>,
+) -> APIResult<impl IntoResponse> {
+    let service = match user_details {
+        Some(user_details) => FileStorageService::new(user_details.sub),
+        None => {
+            let token = query
+                .token
+                .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
+            FileStorageService::from_token(token, container_name.clone(), filename.clone())?
+        }
+    };
+
+    let user_nonce = UserNonce::fetch(container_name, state.nonce_collection).await?;
+    let response = service
+        .download_file_decrypted(filename.to_owned(), user_nonce.nonce)
+        .await?;
+    Ok(response)
 }
