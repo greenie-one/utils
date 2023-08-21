@@ -6,6 +6,8 @@ use tracing_subscriber::{
     filter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
 
+use crate::env_config::APP_ENV;
+
 pub(crate) mod database;
 pub(crate) mod structs;
 pub(crate) mod dtos;
@@ -70,8 +72,8 @@ pub async fn build_run() {
         .route("/health-check", get(|| async { "All Ok!" }))
         .layer(tower_http::trace::TraceLayer::new_for_http());
 
-    let env = std::env::var("APP_ENV").unwrap();
-    let app = match env.as_str() {
+    let env = APP_ENV.as_str();
+    let app = match env {
         "local" => Router::new().nest("/utils", app),
         _ => app,
     };

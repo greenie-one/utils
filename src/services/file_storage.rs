@@ -1,4 +1,4 @@
-use crate::env_config::JWT_KEYS;
+use crate::env_config::{JWT_KEYS, APP_ENV};
 use crate::errors::api_errors::{APIError, APIResult};
 use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
@@ -49,8 +49,8 @@ impl FileStorageService {
     }
 
     pub fn constuct_url(container_name: String, file_name: String) -> String {
-        let env = std::env::var("APP_ENV").unwrap();
-        let url = match env.as_str() {
+        let env = APP_ENV.as_str();
+        let url = match env {
             "production" => format!(
                 "https://api.greenie.one/utils/doc_depot/{}/{}",
                 container_name, file_name
