@@ -2,7 +2,7 @@ use axum::{extract::DefaultBodyLimit, Router};
 use tracing::info;
 
 use crate::{
-    handlers::leads::upload,
+    handlers::leads::{upload, download},
     state::app_state::LeadState,
 };
 
@@ -12,7 +12,7 @@ pub async fn routes() -> Router {
     let state = LeadState::new();
     info!("Mapping profile picture routes - POST /leads");
     axum::Router::new()
-        .route("/leads", axum::routing::post(upload))
-        .with_state(state)
+        .route("/leads", axum::routing::post(upload).with_state(state))
+        .route("/leads/:file_name", axum::routing::get(download))
         .layer(DefaultBodyLimit::max(MAX_SIZE))
 }

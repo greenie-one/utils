@@ -1,9 +1,17 @@
 use mongodb::bson::Document;
-use crate::{services::{file_storage::FileStorageService, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::UserNonce, remote::emailer::Emailer};
+use crate::{services::{file_storage::{FileStorageService, StorageEnum}, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::UserNonce, remote::emailer::Emailer};
 
 #[derive(Clone)]
-pub struct FileStorageState {
+pub struct ProfilePicState {
     pub service: FileStorageService,
+}
+
+impl ProfilePicState {
+    pub fn new() -> Self {
+        Self {
+            service: FileStorageService::new("images".into(), StorageEnum::ProfilePicture),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -44,7 +52,7 @@ pub struct LeadState {
 impl LeadState {
     pub fn new() -> Self {
         Self {
-            service: FileStorageService::new("leads".into()),
+            service: FileStorageService::new("leads".into(), StorageEnum::Leads),
             emailer: Emailer::new(),
         }
     }

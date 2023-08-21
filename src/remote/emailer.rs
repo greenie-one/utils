@@ -57,7 +57,7 @@ impl Emailer {
         };
         let message = format!("File uploaded by {}, url: {}", contact, url);
         self
-            .send_email("office@greenie.one", "Bulk Upload", message.as_str())
+            .send_email("ratneshjain40@gmail.com", "Bulk Upload", message.as_str())
             .await
             .unwrap();
         Ok(())
