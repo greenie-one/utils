@@ -1,8 +1,9 @@
-use crate::env_config::{JWT_KEYS, APP_ENV};
+use crate::env_config::JWT_KEYS;
 use crate::errors::api_errors::{APIError, APIResult};
 use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
 
+use axum::body::StreamBody;
 use axum::http::header;
 use axum::response::IntoResponse;
 use azure_storage::StorageCredentials;
@@ -11,30 +12,53 @@ use azure_storage_blobs::prelude::ClientBuilder;
 use azure_storage_blobs::prelude::ContainerClient;
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
-use mongodb::bson::{doc, Document};
-use mongodb::Collection;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use super::doc_depot::DocDepotService;
+use super::leads::LeadsService;
+use super::profile::ProfileService;
+
+#[derive(Clone)]
+pub enum StorageEnum {
+    DocDepot,
+    Leads,
+    ProfilePicture,
+}
+
+impl StorageEnum {
+    pub fn constuct_url(&self, container_name: String, file_name: String) -> String {
+        match self {
+            Self::DocDepot=> DocDepotService::constuct_url(container_name, file_name),
+            Self::Leads=> LeadsService::constuct_url(container_name, file_name),
+            Self::ProfilePicture=> ProfileService::constuct_url(container_name, file_name),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct FileStorageService {
     pub container_client: ContainerClient,
+    pub storage_service: StorageEnum,
 }
 
 impl FileStorageService {
-    pub fn new(container_name: String) -> Self {
+    pub fn new(container_name: String, service: StorageEnum) -> Self {
         Self {
             container_client: Self::get_container_client(container_name),
+            storage_service: service,
         }
     }
 
-    pub fn from_token(token: String, container_name: String, filename: String) -> APIResult<Self> {
-        let private_url =
-            FileStorageService::constuct_url(container_name.clone(), filename);
+    pub fn from_token(token: String, container_name: String, filename: String, service: StorageEnum) -> APIResult<Self> {
+        let private_url = service.constuct_url(container_name.clone(), filename);
         let token_url = FileStorageService::validate_token(token)?;
         if private_url != token_url {
             return Err(APIError::BadToken);
         }
-        Ok(FileStorageService::new(container_name))
+        Ok(Self {
+            container_client: Self::get_container_client(container_name),
+            storage_service: service,
+        })
     }
 }
 
@@ -46,21 +70,6 @@ impl FileStorageService {
         let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
 
         ClientBuilder::new(account, storage_credentials).container_client(container_name)
-    }
-
-    pub fn constuct_url(container_name: String, file_name: String) -> String {
-        let env = APP_ENV.as_str();
-        let url = match env {
-            "production" => format!(
-                "https://api.greenie.one/utils/doc_depot/{}/{}",
-                container_name, file_name
-            ),
-            _ => format!(
-                "https://dev-api.greenie.one/utils/doc_depot/{}/{}",
-                container_name, file_name
-            ),
-        };
-        url
     }
 
     pub fn validate_token(token: String) -> APIResult<String> {
@@ -78,32 +87,6 @@ impl FileStorageService {
 }
 
 impl FileStorageService {
-    pub async fn check_doc_exists(
-        &self,
-        file_name: String,
-        document_collection: Collection<Document>,
-    ) -> APIResult<bool> {
-        let container_name = self.container_client.container_name();
-        let blob_client = self.container_client.blob_client(file_name.clone());
-        let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
-        if blob_client.exists().await? {
-            let doc = document_collection
-                .find_one(
-                    doc! {
-                        "privateUrl": url.clone()
-                    },
-                    None,
-                )
-                .await?;
-            if doc.is_some() {
-                return Err(APIError::FileAlreadyExists);
-            }
-        }
-        Ok(false)
-    }
-}
-
-impl FileStorageService {
     pub async fn upload_file<'a>(&mut self, file: File<'a>) -> APIResult<String> {
         let file_name = &file.name.clone();
         let content_type = &file.content_type.clone();
@@ -116,7 +99,7 @@ impl FileStorageService {
             .await?;
 
         let container_name = self.container_client.container_name();
-        let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
+        let url = self.storage_service.constuct_url(container_name.to_string(), file_name.to_string());
         Ok(url)
     }
 
@@ -136,7 +119,7 @@ impl FileStorageService {
             .await?;
 
         let container_name = self.container_client.container_name();
-        let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
+        let url = self.storage_service.constuct_url(container_name.to_string(), file_name.to_string());
         Ok(url)
     }
 
@@ -155,20 +138,20 @@ impl FileStorageService {
         Ok(blob)
     }
 
-    // pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
-    //     let blob = self.fetch_file(file_name).await?;
-    //     let content_type = blob.blob.properties.content_type;
-    //     let file_name = blob.blob.name;
-    //     let stream_body = StreamBody::new(blob.data);
-    //     let headers = [
-    //         (header::CONTENT_TYPE, content_type),
-    //         (
-    //             header::CONTENT_DISPOSITION,
-    //             format!("form-data; name=\"file\"; filename=\"{}\"", file_name),
-    //         ),
-    //     ];
-    //     Ok((headers, stream_body))
-    // }
+    pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
+        let blob = self.fetch_file(file_name).await?;
+        let content_type = blob.blob.properties.content_type;
+        let file_name = blob.blob.name;
+        let stream_body = StreamBody::new(blob.data);
+        let headers = [
+            (header::CONTENT_TYPE, content_type),
+            (
+                header::CONTENT_DISPOSITION,
+                format!("form-data; name=\"file\"; filename=\"{}\"", file_name),
+            ),
+        ];
+        Ok((headers, stream_body))
+    }
 
     pub async fn download_file_decrypted(
         &self,
