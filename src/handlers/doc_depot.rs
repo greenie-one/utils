@@ -1,6 +1,5 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::APIResult;
-use crate::models::user_nonces::UserNonce;
 use crate::services::doc_depot::DocDepotService;
 use crate::services::file_storage::{StorageEnum, FileStorageService};
 use crate::state::app_state::DocDepotState;
@@ -37,7 +36,10 @@ pub async fn upload(
         .await?;
 
     let user_nonce =
-        UserNonce::create_or_fetch(user_details.sub.clone(), state.nonce_collection).await?;
+        state
+            .nonce_collection
+            .create_or_fetch(user_details.sub.clone())
+            .await?;
     let url = service
         .upload_file_encrypted(file, user_nonce.nonce)
         .await?;
@@ -65,7 +67,7 @@ pub async fn download(
         }
     };
 
-    let user_nonce = UserNonce::fetch(container_name, state.nonce_collection).await?;
+    let user_nonce = state.nonce_collection.fetch(container_name).await?;
     let response = service
         .download_file_decrypted(filename.to_owned(), user_nonce.nonce)
         .await?;

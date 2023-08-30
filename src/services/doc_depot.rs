@@ -1,12 +1,9 @@
 use azure_storage_blobs::prelude::ContainerClient;
-use mongodb::{
-    bson::{doc, Document},
-    Collection,
-};
+
 
 use crate::{
     env_config::APP_ENV,
-    errors::api_errors::{APIError, APIResult},
+    errors::api_errors::{APIError, APIResult}, database::user_documents::UserDocumentsCollection,
 };
 
 #[derive(Clone)]
@@ -32,22 +29,16 @@ impl DocDepotService {
     pub async fn check_doc_exists(
         container_client: &ContainerClient,
         file_name: String,
-        document_collection: Collection<Document>,
+        document_collection: UserDocumentsCollection,
     ) -> APIResult<bool> {
         let container_name = container_client.container_name();
         let blob_client = container_client.blob_client(file_name.clone());
         let url = Self::constuct_url(container_name.to_string(), file_name.to_string());
         if blob_client.exists().await? {
-            let doc = document_collection
-                .find_one(
-                    doc! {
-                        "privateUrl": url.clone()
-                    },
-                    None,
-                )
-                .await?;
-            if doc.is_some() {
-                return Err(APIError::FileAlreadyExists);
+            let doc_exists = document_collection
+                .exists(url).await?;
+            if doc_exists {
+                Err(APIError::FileAlreadyExists)?
             }
         }
         Ok(false)

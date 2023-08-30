@@ -1,5 +1,4 @@
-use mongodb::bson::Document;
-use crate::{services::{file_storage::{FileStorageService, StorageEnum}, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::UserNonce, remote::emailer::Emailer};
+use crate::{services::{file_storage::{FileStorageService, StorageEnum}, admin::AdminService}, database::{nonces::NonceCollection, user_documents::UserDocumentsCollection}, remote::emailer::Emailer};
 
 #[derive(Clone)]
 pub struct ProfilePicState {
@@ -16,16 +15,15 @@ impl ProfilePicState {
 
 #[derive(Clone)]
 pub struct DocDepotState {
-    pub document_collection: mongodb::Collection<Document>,
-    pub nonce_collection: mongodb::Collection<UserNonce>,
+    pub document_collection: UserDocumentsCollection,
+    pub nonce_collection: NonceCollection,
 }
 
 impl DocDepotState {
     pub async fn new() -> Self {
-        let db = MongoDB::new().await;
         Self {
-            document_collection: db.connection.collection("documents"),
-            nonce_collection: db.connection.collection("nonces"),
+            document_collection: UserDocumentsCollection::new().await,
+            nonce_collection: NonceCollection::new().await,
         }
     }
 }
