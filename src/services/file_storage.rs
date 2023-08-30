@@ -1,4 +1,4 @@
-use crate::env_config::JWT_KEYS;
+use crate::env_config::{JWT_KEYS, STORAGE_ACCOUNT, STORAGE_ACCESS_KEY};
 use crate::errors::api_errors::{APIError, APIResult};
 use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
@@ -28,9 +28,9 @@ pub enum StorageEnum {
 impl StorageEnum {
     pub fn constuct_url(&self, container_name: String, file_name: String) -> String {
         match self {
-            Self::DocDepot=> DocDepotService::constuct_url(container_name, file_name),
-            Self::Leads=> LeadsService::constuct_url(container_name, file_name),
-            Self::ProfilePicture=> ProfileService::constuct_url(container_name, file_name),
+            Self::DocDepot => DocDepotService::constuct_url(container_name, file_name),
+            Self::Leads => LeadsService::constuct_url(container_name, file_name),
+            Self::ProfilePicture => ProfileService::constuct_url(container_name, file_name),
         }
     }
 }
@@ -49,7 +49,12 @@ impl FileStorageService {
         }
     }
 
-    pub fn from_token(token: String, container_name: String, filename: String, service: StorageEnum) -> APIResult<Self> {
+    pub fn from_token(
+        token: String,
+        container_name: String,
+        filename: String,
+        service: StorageEnum,
+    ) -> APIResult<Self> {
         let private_url = service.constuct_url(container_name.clone(), filename);
         let token_url = FileStorageService::validate_token(token)?;
         if private_url != token_url {
@@ -63,16 +68,12 @@ impl FileStorageService {
 }
 
 impl FileStorageService {
-    pub fn get_container_client(container_name: String) -> ContainerClient {
-        let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
-        let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
-
-        let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
-
-        ClientBuilder::new(account, storage_credentials).container_client(container_name)
+    fn get_container_client(container_name: String) -> ContainerClient {
+        let storage_credentials = StorageCredentials::Key(STORAGE_ACCOUNT.clone(), STORAGE_ACCESS_KEY.clone());
+        ClientBuilder::new(STORAGE_ACCOUNT.clone(), storage_credentials).container_client(container_name)
     }
 
-    pub fn validate_token(token: String) -> APIResult<String> {
+    fn validate_token(token: String) -> APIResult<String> {
         let validation = Validation::new(Algorithm::RS256);
         let token_claims: TokenData<DownloadToken> =
             decode(token.as_ref(), &JWT_KEYS.decode_key, &validation)?;
@@ -99,7 +100,9 @@ impl FileStorageService {
             .await?;
 
         let container_name = self.container_client.container_name();
-        let url = self.storage_service.constuct_url(container_name.to_string(), file_name.to_string());
+        let url = self
+            .storage_service
+            .constuct_url(container_name.to_string(), file_name.to_string());
         Ok(url)
     }
 
@@ -119,7 +122,9 @@ impl FileStorageService {
             .await?;
 
         let container_name = self.container_client.container_name();
-        let url = self.storage_service.constuct_url(container_name.to_string(), file_name.to_string());
+        let url = self
+            .storage_service
+            .constuct_url(container_name.to_string(), file_name.to_string());
         Ok(url)
     }
 

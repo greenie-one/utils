@@ -6,16 +6,15 @@ use futures_util::StreamExt;
 use mongodb::bson::Document;
 use tracing::log::info;
 
+use crate::env_config::{STORAGE_ACCOUNT, STORAGE_ACCESS_KEY};
 use crate::errors::server_errors::ServerError;
 use crate::{database::mongo::MongoDB, errors::server_errors::ServerResult};
 
 use crate::utils::checks::is_object_id;
 
-pub async fn fetch_container_names() -> ServerResult<Vec<String>> {
-    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
-    let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
-    let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
-    let blob_service = BlobServiceClient::new(account, storage_credentials);
+pub async fn fetch_container_names_azure() -> ServerResult<Vec<String>> {
+    let storage_credentials = StorageCredentials::Key(STORAGE_ACCOUNT.clone(), STORAGE_ACCESS_KEY.clone());
+    let blob_service = BlobServiceClient::new(STORAGE_ACCOUNT.clone(), storage_credentials);
 
     let mut list_conatiner_stream = blob_service.list_containers().into_stream();
 
@@ -35,10 +34,8 @@ pub async fn fetch_container_names() -> ServerResult<Vec<String>> {
 pub async fn list_blob_names(
     container_names: Vec<String>,
 ) -> ServerResult<HashMap<String, HashSet<String>>> {
-    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
-    let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
-    let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
-    let blob_service = BlobServiceClient::new(account, storage_credentials);
+    let storage_credentials = StorageCredentials::Key(STORAGE_ACCOUNT.clone(), STORAGE_ACCESS_KEY.clone());
+    let blob_service = BlobServiceClient::new(STORAGE_ACCOUNT.clone(), storage_credentials);
 
     let mut files: HashMap<String, HashSet<String>> = HashMap::new();
     for container_name in container_names {
@@ -63,7 +60,7 @@ pub async fn list_blob_names(
 pub async fn files_from_private_urls() -> ServerResult<HashMap<String, HashSet<String>>> {
     let client = MongoDB::new().await;
     let documents = client.connection.collection::<Document>("documents");
-    // fetch all documents
+
     let mut cursor = documents.find(None, None).await?;
     let mut files: HashMap<String, HashSet<String>> = HashMap::new();
     while let Some(result) = cursor.next().await {
@@ -80,10 +77,8 @@ pub async fn files_from_private_urls() -> ServerResult<HashMap<String, HashSet<S
 }
 
 pub async fn delete_containers(container_names: Vec<String>) {
-    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
-    let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
-    let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
-    let blob_service = BlobServiceClient::new(account, storage_credentials);
+    let storage_credentials = StorageCredentials::Key(STORAGE_ACCOUNT.clone(), STORAGE_ACCESS_KEY.clone());
+    let blob_service = BlobServiceClient::new(STORAGE_ACCOUNT.clone(), storage_credentials);
 
     for container_name in container_names {
         info!("deleting container: {}", container_name);
@@ -92,10 +87,8 @@ pub async fn delete_containers(container_names: Vec<String>) {
 }
 
 pub async fn delete_blobs(container_name: String, blob_names: Vec<String>) {
-    let account = std::env::var("STORAGE_ACCOUNT").expect("missing STORAGE_ACCOUNT");
-    let access_key = std::env::var("STORAGE_ACCESS_KEY").expect("missing STORAGE_ACCOUNT_KEY");
-    let storage_credentials = StorageCredentials::Key(account.clone(), access_key);
-    let blob_service = BlobServiceClient::new(account, storage_credentials);
+    let storage_credentials = StorageCredentials::Key(STORAGE_ACCOUNT.clone(), STORAGE_ACCESS_KEY.clone());
+    let blob_service = BlobServiceClient::new(STORAGE_ACCOUNT.clone(), storage_credentials);
 
     for blob_name in blob_names {
         info!("deleting blob: {}", blob_name);
@@ -108,7 +101,7 @@ pub async fn delete_blobs(container_name: String, blob_names: Vec<String>) {
 }
 
 pub async fn cleanup() -> ServerResult<()> {
-    let storage_container_names = fetch_container_names().await?;
+    let storage_container_names = fetch_container_names_azure().await?;
     let db_files = files_from_private_urls().await?;
     let storage_container_names_set: HashSet<String> =
         storage_container_names.iter().map(|f| f.clone()).collect();
