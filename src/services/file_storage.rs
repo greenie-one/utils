@@ -1,94 +1,31 @@
-use crate::env_config::{JWT_KEYS, STORAGE_ACCOUNT, STORAGE_ACCESS_KEY};
 use crate::errors::api_errors::{APIError, APIResult};
-use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
-
+use crate::utils::azure::get_container_client;
 use axum::body::StreamBody;
 use axum::http::header;
 use axum::response::IntoResponse;
-use azure_storage::StorageCredentials;
+
 use azure_storage_blobs::blob::operations::GetBlobResponse;
-use azure_storage_blobs::prelude::ClientBuilder;
+
 use azure_storage_blobs::prelude::ContainerClient;
 use futures_util::StreamExt;
-use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use super::doc_depot::DocDepotService;
-use super::leads::LeadsService;
-use super::profile::ProfileService;
-
-#[derive(Clone)]
-pub enum StorageEnum {
-    DocDepot,
-    Leads,
-    ProfilePicture,
-}
-
-impl StorageEnum {
-    pub fn constuct_url(&self, container_name: String, file_name: String) -> String {
-        match self {
-            Self::DocDepot => DocDepotService::constuct_url(container_name, file_name),
-            Self::Leads => LeadsService::constuct_url(container_name, file_name),
-            Self::ProfilePicture => ProfileService::constuct_url(container_name, file_name),
-        }
-    }
-}
+use url::Url;
 
 #[derive(Clone)]
 pub struct FileStorageService {
     pub container_client: ContainerClient,
-    pub storage_service: StorageEnum,
 }
 
 impl FileStorageService {
-    pub fn new(container_name: String, service: StorageEnum) -> Self {
+    pub fn new(container_name: &str) -> Self {
         Self {
-            container_client: Self::get_container_client(container_name),
-            storage_service: service,
+            container_client: get_container_client(container_name),
         }
-    }
-
-    pub fn from_token(
-        token: String,
-        container_name: String,
-        filename: String,
-        service: StorageEnum,
-    ) -> APIResult<Self> {
-        let private_url = service.constuct_url(container_name.clone(), filename);
-        let token_url = FileStorageService::validate_token(token)?;
-        if private_url != token_url {
-            return Err(APIError::BadToken);
-        }
-        Ok(Self {
-            container_client: Self::get_container_client(container_name),
-            storage_service: service,
-        })
     }
 }
 
 impl FileStorageService {
-    fn get_container_client(container_name: String) -> ContainerClient {
-        let storage_credentials = StorageCredentials::Key(STORAGE_ACCOUNT.clone(), STORAGE_ACCESS_KEY.clone());
-        ClientBuilder::new(STORAGE_ACCOUNT.clone(), storage_credentials).container_client(container_name)
-    }
-
-    fn validate_token(token: String) -> APIResult<String> {
-        let validation = Validation::new(Algorithm::RS256);
-        let token_claims: TokenData<DownloadToken> =
-            decode(token.as_ref(), &JWT_KEYS.decode_key, &validation)?;
-
-        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-        if token_claims.claims.exp < now {
-            return Err(APIError::TokenExpired);
-        }
-
-        Ok(token_claims.claims.url)
-    }
-}
-
-impl FileStorageService {
-    pub async fn upload_file<'a>(&mut self, file: File<'a>) -> APIResult<String> {
+    pub async fn upload_file(&mut self, file: File<'_>) -> APIResult<Url> {
         let file_name = &file.name.clone();
         let content_type = &file.content_type.clone();
 
@@ -99,18 +36,15 @@ impl FileStorageService {
             .content_type(content_type)
             .await?;
 
-        let container_name = self.container_client.container_name();
-        let url = self
-            .storage_service
-            .constuct_url(container_name.to_string(), file_name.to_string());
+        let url = blob_client.url()?;
         Ok(url)
     }
 
-    pub async fn upload_file_encrypted<'a>(
+    pub async fn upload_file_encrypted(
         &mut self,
-        file: File<'a>,
+        file: File<'_>,
         nonce: Vec<u8>,
-    ) -> APIResult<String> {
+    ) -> APIResult<Url> {
         let file_name = &file.name.clone();
         let content_type = &file.content_type.clone();
 
@@ -121,10 +55,7 @@ impl FileStorageService {
             .content_type(content_type)
             .await?;
 
-        let container_name = self.container_client.container_name();
-        let url = self
-            .storage_service
-            .constuct_url(container_name.to_string(), file_name.to_string());
+        let url = blob_client.url()?;
         Ok(url)
     }
 

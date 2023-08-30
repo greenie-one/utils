@@ -1,6 +1,6 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::{APIError, APIResult};
-use crate::services::file_storage::{FileStorageService, StorageEnum};
+use crate::services::leads::LeadsService;
 use crate::state::app_state::LeadState;
 use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
@@ -56,7 +56,7 @@ pub async fn download(
     let token = query
         .token
         .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-    let service = FileStorageService::from_token(token, "leads".to_string(), filename.clone(), StorageEnum::Leads)?;
+    let service = LeadsService::from_token(token, filename.clone())?;
 
     let response = service.download_file(filename.to_owned()).await?;
     Ok(response)

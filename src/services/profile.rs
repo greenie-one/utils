@@ -1,16 +1,21 @@
-use crate::env_config::STORAGE_ACCOUNT;
+use crate::{structs::files::File, errors::api_errors::APIResult};
 
+use super::file_storage::FileStorageService;
 
 #[derive(Clone)]
-pub struct ProfileService {}
-impl ProfileService {
-    pub fn constuct_url(container_name: String, file_name: String) -> String {
-        // Example URL https://fe981b19388e544fa86f77a.blob.core.windows.net/images/645a12409e423236816330b4.jpg
-        let storage_account = STORAGE_ACCOUNT.as_str();
-        let url = format!(
-            "https://{}.blob.core.windows.net/{}/{}",
-            storage_account, container_name, file_name
-        );
-        url
-    }
+pub struct ProfileService {
+    file_storage: FileStorageService,
 }
+
+impl ProfileService {
+    pub fn new() -> Self {
+        Self {
+            file_storage: FileStorageService::new("images"),
+        }
+    }
+
+    pub async fn upload_file(&mut self, file: File<'_>) -> APIResult<String> {
+        let url = self.file_storage.upload_file(file).await?;
+        Ok(url.to_string())
+    }
+}   
