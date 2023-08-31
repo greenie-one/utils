@@ -1,31 +1,33 @@
-use mongodb::bson::Document;
-use crate::{services::{file_storage::{FileStorageService, StorageEnum}, admin::AdminService}, database::mongo::MongoDB, models::user_nonces::UserNonce, remote::emailer::Emailer};
+use crate::{
+    database::{nonces::NonceCollection, user_documents::UserDocumentsCollection},
+    remote::emailer::Emailer,
+    services::{admin::AdminService, file_storage::{FileStorageService, profile::Profile, leads::Leads}},
+};
 
 #[derive(Clone)]
 pub struct ProfilePicState {
-    pub service: FileStorageService,
+    pub service: FileStorageService<Profile>,
 }
 
 impl ProfilePicState {
     pub fn new() -> Self {
         Self {
-            service: FileStorageService::new("images".into(), StorageEnum::ProfilePicture),
+            service: Profile::new(),
         }
     }
 }
 
 #[derive(Clone)]
 pub struct DocDepotState {
-    pub document_collection: mongodb::Collection<Document>,
-    pub nonce_collection: mongodb::Collection<UserNonce>,
+    pub document_collection: UserDocumentsCollection,
+    pub nonce_collection: NonceCollection,
 }
 
 impl DocDepotState {
     pub async fn new() -> Self {
-        let db = MongoDB::new().await;
         Self {
-            document_collection: db.connection.collection("documents"),
-            nonce_collection: db.connection.collection("nonces"),
+            document_collection: UserDocumentsCollection::new().await,
+            nonce_collection: NonceCollection::new().await,
         }
     }
 }
@@ -45,16 +47,15 @@ impl AdminState {
 
 #[derive(Clone)]
 pub struct LeadState {
-    pub service: FileStorageService,
+    pub service: FileStorageService<Leads>,
     pub emailer: Emailer,
 }
 
 impl LeadState {
     pub fn new() -> Self {
         Self {
-            service: FileStorageService::new("leads".into(), StorageEnum::Leads),
+            service: Leads::new(),
             emailer: Emailer::new(),
         }
     }
 }
-    

@@ -1,8 +1,6 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::APIResult;
-use crate::models::user_nonces::UserNonce;
-use crate::services::doc_depot::DocDepotService;
-use crate::services::file_storage::{StorageEnum, FileStorageService};
+use crate::services::file_storage::doc_depot::DocDepot;
 use crate::state::app_state::DocDepotState;
 use crate::structs::files::File;
 use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};
@@ -16,31 +14,26 @@ pub async fn upload(
     user_details: TokenClaims,
     mut multipart: Multipart,
 ) -> APIResult<Json<Value>> {
-    let mut service = FileStorageService::new(user_details.sub.clone(), StorageEnum::DocDepot);
-    if !service.container_client.exists().await? {
-        service.container_client.create().await?;
-    }
-
-    let field = multipart
-        .next_field()
-        .await?
-        .ok_or_else(|| APIError::NoFileAttached)?;
+    let field = multipart.next_field().await?;
+    let field = match field {
+        Some(field) => field,
+        None => return Err(APIError::NoFileAttached),
+    };
 
     let file: File<'_> = File::try_from(field)?;
     file.validate_pdf()?;
 
-    DocDepotService::check_doc_exists(
-            &service.container_client,
-            file.name.clone(),
-            state.document_collection,
-        )
+    let mut service = DocDepot::new(user_details.sub.as_str()).await?;
+    service
+        .doc_exists(file.name.as_ref(), state.document_collection)
         .await?;
 
-    let user_nonce =
-        UserNonce::create_or_fetch(user_details.sub.clone(), state.nonce_collection).await?;
-    let url = service
-        .upload_file_encrypted(file, user_nonce.nonce)
+    let user_nonce = state
+        .nonce_collection
+        .create_or_fetch(user_details.sub.as_ref())
         .await?;
+
+    let url = service.upload_file(file, user_nonce.nonce).await?;
 
     Ok(Json(json!({
         "message": "File uploaded successfully",
@@ -51,23 +44,22 @@ pub async fn upload(
 pub async fn download(
     State(state): State<DocDepotState>,
     user_details: Option<TokenClaims>,
-    Path((container_name, filename)): Path<(String, String)>,
+    Path((user_container, filename)): Path<(String, String)>,
     Query(query): Query<DownloadDTO>,
 ) -> APIResult<impl IntoResponse> {
-    println!("{:?}, {:?}", container_name, filename);
     let service = match user_details {
-        Some(user_details) => FileStorageService::new(user_details.sub, StorageEnum::DocDepot),
+        Some(user_details) => DocDepot::new(user_details.sub.as_str()).await?,
         None => {
             let token = query
                 .token
                 .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-            FileStorageService::from_token(token, container_name.clone(), filename.clone(), StorageEnum::DocDepot)?
+            DocDepot::from_token(token, user_container.as_ref(), filename.as_ref())?
         }
     };
 
-    let user_nonce = UserNonce::fetch(container_name, state.nonce_collection).await?;
+    let user_nonce = state.nonce_collection.fetch(user_container).await?;
     let response = service
-        .download_file_decrypted(filename.to_owned(), user_nonce.nonce)
+        .download_file(filename.to_owned(), user_nonce.nonce)
         .await?;
     Ok(response)
 }

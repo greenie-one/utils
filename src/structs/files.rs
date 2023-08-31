@@ -13,6 +13,12 @@ pub struct File<'a> {
 }
 
 impl File<'_> {
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
+impl File<'_> {
     pub fn validate_pdf(&self) -> APIResult<()> {
         if !self.content_type.starts_with("application/pdf") {
             return Err(APIError::InvalidContentType);

@@ -11,7 +11,6 @@ pub struct AdminService {
 
 impl AdminService {
     pub async fn new() -> Self {
-
         Self {
             user_collection: MongoDB::new().await.connection.collection("users"),
         }

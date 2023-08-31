@@ -8,8 +8,14 @@ use crate::utils::encrypt::get_cipher;
 lazy_static! {
     pub static ref APP_ENV: String = std::env::var("APP_ENV").expect("APP_ENV should be defined");
     pub static ref REMOTE_URL: String = std::env::var("REMOTE_BASE_URL").expect("REMOTE_BASE_URL should be defined");
+
+    // Encryption
     pub static ref JWT_KEYS: JWTKeys = JWTKeys::new();
     pub static ref CIPHER: XChaCha20Poly1305 = get_cipher();
+
+    // Blob Storage
+    pub static ref STORAGE_ACCOUNT: String = std::env::var("STORAGE_ACCOUNT").expect("STORAGE_ACCOUNT should be defined");
+    pub static ref STORAGE_ACCESS_KEY: String = std::env::var("STORAGE_ACCESS_KEY").expect("STORAGE_ACCESS_KEY should be defined");
 }
 
 pub struct JWTKeys {

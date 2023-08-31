@@ -1,8 +1,7 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::{APIError, APIResult};
-use crate::services::file_storage::{FileStorageService, StorageEnum};
+use crate::services::file_storage::leads::Leads;
 use crate::state::app_state::LeadState;
-use crate::structs::download_token::DownloadToken;
 use crate::structs::files::File;
 use crate::structs::token_claims::TokenClaims;
 
@@ -25,14 +24,11 @@ pub async fn upload(
         .await?
         .ok_or_else(|| APIError::NoFileAttached)?;
     let mut file = File::try_from(field)?;
-
     file.validate_csv()?;
-    file.name = format!("{}-{}", user_details.sub, file.name);
-    let url = state.service.upload_file(file).await?;
+    file.set_name(format!("{}-{}", user_details.sub, file.name));
 
-    let token = DownloadToken::new_from_days(url.clone(), 365)?.encode();
-    let mut url = url::Url::parse(&url)?;
-    url.set_query(Some(&format!("token={}", token)));
+    let url = state.service.upload_file(file).await?;
+    let url = state.service.generate_signed_download_url(url).await?;
 
     tokio::spawn(async move {
         let res = state
@@ -56,7 +52,7 @@ pub async fn download(
     let token = query
         .token
         .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-    let service = FileStorageService::from_token(token, "leads".to_string(), filename.clone(), StorageEnum::Leads)?;
+    let service = Leads::from_token(token, filename.as_ref())?;
 
     let response = service.download_file(filename.to_owned()).await?;
     Ok(response)

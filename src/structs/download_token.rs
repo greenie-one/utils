@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{env_config::JWT_KEYS, errors::api_errors::APIResult};
+use crate::{env_config::JWT_KEYS, errors::api_errors::{APIResult, APIError}};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DownloadToken {
@@ -30,5 +30,18 @@ impl DownloadToken {
         )
         .unwrap();
         token
+    }
+
+    pub fn validate(token: String) -> APIResult<Self> {
+        let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+        let token_claims: jsonwebtoken::TokenData<DownloadToken> =
+            jsonwebtoken::decode(token.as_ref(), &JWT_KEYS.decode_key, &validation)?;
+
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+        if token_claims.claims.exp < now {
+            return Err(APIError::TokenExpired);
+        }
+
+        Ok(token_claims.claims)
     }
 }
