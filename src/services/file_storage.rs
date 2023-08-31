@@ -1,6 +1,5 @@
 use crate::errors::api_errors::{APIError, APIResult};
 use crate::structs::files::File;
-use crate::utils::azure::get_container_client;
 use axum::body::StreamBody;
 use axum::http::header;
 use axum::response::IntoResponse;
@@ -12,20 +11,13 @@ use futures_util::StreamExt;
 use url::Url;
 
 #[derive(Clone)]
-pub struct FileStorageService {
+pub struct FileStorageService<Type> {
     pub container_client: ContainerClient,
+    pub _phantom: std::marker::PhantomData<Type>,
 }
 
-impl FileStorageService {
-    pub fn new(container_name: &str) -> Self {
-        Self {
-            container_client: get_container_client(container_name),
-        }
-    }
-}
-
-impl FileStorageService {
-    pub async fn upload_file(&mut self, file: File<'_>) -> APIResult<Url> {
+impl<Type> FileStorageService<Type> {
+    pub(super) async fn uploader(&mut self, file: File<'_>) -> APIResult<Url> {
         let file_name = &file.name.clone();
         let content_type = &file.content_type.clone();
 
@@ -40,11 +32,7 @@ impl FileStorageService {
         Ok(url)
     }
 
-    pub async fn upload_file_encrypted(
-        &mut self,
-        file: File<'_>,
-        nonce: Vec<u8>,
-    ) -> APIResult<Url> {
+    pub(super) async fn uploader_encrypted(&mut self, file: File<'_>, nonce: Vec<u8>) -> APIResult<Url> {
         let file_name = &file.name.clone();
         let content_type = &file.content_type.clone();
 
@@ -74,7 +62,7 @@ impl FileStorageService {
         Ok(blob)
     }
 
-    pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
+    pub(super) async fn downloader(&self, file_name: String) -> APIResult<impl IntoResponse> {
         let blob = self.fetch_file(file_name).await?;
         let content_type = blob.blob.properties.content_type;
         let file_name = blob.blob.name;
@@ -89,7 +77,7 @@ impl FileStorageService {
         Ok((headers, stream_body))
     }
 
-    pub async fn download_file_decrypted(
+    pub(super) async fn downloader_decrypted(
         &self,
         file_name: String,
         nonce: Vec<u8>,

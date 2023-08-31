@@ -1,18 +1,18 @@
 use crate::{
     database::{nonces::NonceCollection, user_documents::UserDocumentsCollection},
     remote::emailer::Emailer,
-    services::{admin::AdminService, leads::LeadsService, profile::ProfileService},
+    services::{admin::AdminService, leads::Leads, profile::Profile, file_storage::FileStorageService},
 };
 
 #[derive(Clone)]
 pub struct ProfilePicState {
-    pub service: ProfileService,
+    pub service: FileStorageService<Profile>,
 }
 
 impl ProfilePicState {
     pub fn new() -> Self {
         Self {
-            service: ProfileService::new(),
+            service: Profile::new(),
         }
     }
 }
@@ -47,14 +47,14 @@ impl AdminState {
 
 #[derive(Clone)]
 pub struct LeadState {
-    pub service: LeadsService,
+    pub service: FileStorageService<Leads>,
     pub emailer: Emailer,
 }
 
 impl LeadState {
     pub fn new() -> Self {
         Self {
-            service: LeadsService::new(),
+            service: Leads::new(),
             emailer: Emailer::new(),
         }
     }

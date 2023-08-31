@@ -1,21 +1,22 @@
-use crate::{structs::files::File, errors::api_errors::APIResult};
+use crate::{structs::files::File, errors::api_errors::APIResult, utils::azure::get_container_client};
 
 use super::file_storage::FileStorageService;
 
 #[derive(Clone)]
-pub struct ProfileService {
-    file_storage: FileStorageService,
-}
+pub struct Profile();
 
-impl ProfileService {
-    pub fn new() -> Self {
-        Self {
-            file_storage: FileStorageService::new("images"),
+impl Profile {
+    pub fn new() -> FileStorageService<Self> {
+        FileStorageService {
+            container_client: get_container_client("images"),
+            _phantom: std::marker::PhantomData::<Profile>,
         }
     }
+}
 
+impl FileStorageService<Profile> {
     pub async fn upload_file(&mut self, file: File<'_>) -> APIResult<String> {
-        let url = self.file_storage.upload_file(file).await?;
+        let url = self.uploader(file).await?;
         Ok(url.to_string())
     }
 }   

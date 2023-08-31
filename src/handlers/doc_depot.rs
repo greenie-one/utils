@@ -1,6 +1,6 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::APIResult;
-use crate::services::doc_depot::DocDepotService;
+use crate::services::doc_depot::DocDepot;
 use crate::state::app_state::DocDepotState;
 use crate::structs::files::File;
 use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};
@@ -21,9 +21,7 @@ pub async fn upload(
     let file: File<'_> = File::try_from(field)?;
     file.validate_pdf()?;
 
-    let mut service = DocDepotService::new(user_details.sub.clone()).await?;
-    service.create_container_if_not_exists().await?;
-    
+    let mut service = DocDepot::new(user_details.sub.as_str()).await?;
     service.doc_exists(
             file.name.clone(),
             state.document_collection,
@@ -53,12 +51,12 @@ pub async fn download(
     Query(query): Query<DownloadDTO>,
 ) -> APIResult<impl IntoResponse> {
     let service = match user_details {
-        Some(user_details) => DocDepotService::new(user_details.sub.clone()).await?,
+        Some(user_details) => DocDepot::new(user_details.sub.as_str()).await?,
         None => {
             let token = query
                 .token
                 .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-            DocDepotService::from_token(token, user_container.clone(), filename.clone())?
+            DocDepot::from_token(token, user_container.clone(), filename.clone())?
         }
     };
 
