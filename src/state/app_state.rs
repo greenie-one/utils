@@ -1,7 +1,7 @@
 use crate::{
     database::{nonces::NonceCollection, user_documents::UserDocumentsCollection},
     remote::emailer::Emailer,
-    services::{admin::AdminService, leads::Leads, profile::Profile, file_storage::FileStorageService},
+    services::{admin::AdminService, file_storage::{FileStorageService, profile::Profile, leads::Leads}},
 };
 
 #[derive(Clone)]

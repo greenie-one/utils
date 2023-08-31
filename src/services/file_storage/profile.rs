@@ -1,6 +1,6 @@
 use crate::{structs::files::File, errors::api_errors::APIResult, utils::azure::get_container_client};
 
-use super::file_storage::FileStorageService;
+use super::FileStorageService;
 
 #[derive(Clone)]
 pub struct Profile();

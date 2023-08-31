@@ -1,6 +1,6 @@
 use crate::dtos::doc_depot::DownloadDTO;
 use crate::errors::api_errors::APIResult;
-use crate::services::doc_depot::DocDepot;
+use crate::services::file_storage::doc_depot::DocDepot;
 use crate::state::app_state::DocDepotState;
 use crate::structs::files::File;
 use crate::{errors::api_errors::APIError, structs::token_claims::TokenClaims};

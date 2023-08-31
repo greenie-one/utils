@@ -8,7 +8,7 @@ use crate::{
     utils::azure::get_container_client,
 };
 
-use super::file_storage::FileStorageService;
+use super::FileStorageService;
 
 #[derive(Clone)]
 pub struct DocDepot();
