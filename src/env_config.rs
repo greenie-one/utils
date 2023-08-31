@@ -16,7 +16,6 @@ lazy_static! {
     // Blob Storage
     pub static ref STORAGE_ACCOUNT: String = std::env::var("STORAGE_ACCOUNT").expect("STORAGE_ACCOUNT should be defined");
     pub static ref STORAGE_ACCESS_KEY: String = std::env::var("STORAGE_ACCESS_KEY").expect("STORAGE_ACCESS_KEY should be defined");
-    
 }
 
 pub struct JWTKeys {
