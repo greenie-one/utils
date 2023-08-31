@@ -22,8 +22,8 @@ pub struct FileStorageService<Type> {
 
 impl<Type> FileStorageService<Type> {
     pub(self) async fn uploader(&mut self, file: File<'_>) -> APIResult<Url> {
-        let file_name = &file.name.clone();
-        let content_type = &file.content_type.clone();
+        let file_name = file.name.as_str();
+        let content_type = file.content_type.clone();
 
         let blob_client = self.container_client.blob_client(file_name);
 
@@ -37,8 +37,8 @@ impl<Type> FileStorageService<Type> {
     }
 
     pub(self) async fn uploader_encrypted(&mut self, file: File<'_>, nonce: Vec<u8>) -> APIResult<Url> {
-        let file_name = &file.name.clone();
-        let content_type = &file.content_type.clone();
+        let file_name = file.name.as_str();
+        let content_type = file.content_type.clone();
 
         let blob_client = self.container_client.blob_client(file_name);
 

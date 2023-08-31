@@ -29,7 +29,7 @@ impl NonceCollection {
 }
 
 impl NonceCollection {
-    pub async fn create_or_fetch(&self, user_id: String) -> APIResult<UserNonce> {
+    pub async fn create_or_fetch(&self, user_id: &str) -> APIResult<UserNonce> {
         let nonce = self
             .collection
             .find_one(doc! {"user_id": ObjectId::from_str(&user_id)?}, None)

@@ -52,7 +52,7 @@ pub async fn download(
     let token = query
         .token
         .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-    let service = Leads::from_token(token, filename.clone())?;
+    let service = Leads::from_token(token, filename.as_ref())?;
 
     let response = service.download_file(filename.to_owned()).await?;
     Ok(response)

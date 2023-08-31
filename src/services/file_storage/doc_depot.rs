@@ -25,20 +25,20 @@ impl DocDepot {
         })
     }
 
-    pub fn from_token(token: String, user_container: String, filename: String) -> APIResult<FileStorageService<Self>> {
-        let private_url = Self::constuct_url(user_container.clone(), filename);
+    pub fn from_token(token: String, user_container: &str, filename: &str) -> APIResult<FileStorageService<Self>> {
+        let private_url = Self::constuct_url(user_container, filename);
         let token_url = DownloadToken::validate(token)?.url;
         if private_url != token_url {
             return Err(APIError::BadToken);
         }
 
         Ok(FileStorageService {
-            container_client: get_container_client(user_container.as_str()),
+            container_client: get_container_client(user_container),
             _phantom: std::marker::PhantomData::<DocDepot>,
         })
     }
 
-    pub fn constuct_url(user_container: String, file_name: String) -> String {
+    pub fn constuct_url(user_container: &str, file_name: &str) -> String {
         let env = APP_ENV.as_str();
         let url = match env {
             "production" => format!(
@@ -57,12 +57,12 @@ impl DocDepot {
 impl FileStorageService<DocDepot> {
     pub async fn doc_exists(
         &self,
-        file_name: String,
+        file_name: &str,
         document_collection: UserDocumentsCollection,
     ) -> APIResult<bool> {
         let user_container = self.container_client.container_name();
-        let blob_client = self.container_client.blob_client(file_name.clone());
-        let url = DocDepot::constuct_url(user_container.to_string(), file_name.to_string());
+        let blob_client = self.container_client.blob_client(file_name);
+        let url = DocDepot::constuct_url(user_container, file_name);
         if blob_client.exists().await? {
             let doc_exists = document_collection.exists(url).await?;
             if doc_exists {
@@ -78,8 +78,8 @@ impl FileStorageService<DocDepot> {
         let file_name = url.path_segments().unwrap().last().unwrap();
         let user_container = url.path_segments().unwrap().nth_back(1).unwrap();
         Ok(DocDepot::constuct_url(
-            user_container.to_string(),
-            file_name.to_string(),
+            user_container,
+            file_name,
         ))
     }
 

@@ -22,21 +22,16 @@ pub async fn upload(
     file.validate_pdf()?;
 
     let mut service = DocDepot::new(user_details.sub.as_str()).await?;
-    service.doc_exists(
-            file.name.clone(),
-            state.document_collection,
-        )
+    service
+        .doc_exists(file.name.as_ref(), state.document_collection)
         .await?;
 
-    let user_nonce =
-        state
-            .nonce_collection
-            .create_or_fetch(user_details.sub.clone())
-            .await?;
-
-    let url = service
-        .upload_file(file, user_nonce.nonce)
+    let user_nonce = state
+        .nonce_collection
+        .create_or_fetch(user_details.sub.as_ref())
         .await?;
+
+    let url = service.upload_file(file, user_nonce.nonce).await?;
 
     Ok(Json(json!({
         "message": "File uploaded successfully",
@@ -56,7 +51,7 @@ pub async fn download(
             let token = query
                 .token
                 .ok_or_else(|| APIError::MissingQueryParams("token".to_owned()))?;
-            DocDepot::from_token(token, user_container.clone(), filename.clone())?
+            DocDepot::from_token(token, user_container.as_ref(), filename.as_ref())?
         }
     };
 

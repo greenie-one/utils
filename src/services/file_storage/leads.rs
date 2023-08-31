@@ -19,7 +19,7 @@ impl Leads {
         }
     }
 
-    pub fn from_token(token: String, filename: String) -> APIResult<FileStorageService<Self>> {
+    pub fn from_token(token: String, filename: &str) -> APIResult<FileStorageService<Self>> {
         let private_url = Self::constuct_url(filename);
         let token_url = DownloadToken::validate(token)?.url;
         if private_url != token_url {
@@ -29,7 +29,7 @@ impl Leads {
         Ok(Leads::new())
     }
     
-    pub fn constuct_url(file_name: String) -> String {
+    pub fn constuct_url(file_name: &str) -> String {
         let env = APP_ENV.as_str();
         let url = match env {
             "production" => format!("https://api.greenie.one/utils/leads/{}", file_name),
@@ -50,7 +50,7 @@ impl FileStorageService<Leads> {
     pub async fn upload_file(&mut self, file: File<'_>) -> APIResult<String> {
         let url = self.uploader(file).await?;
         let file_name = url.path_segments().unwrap().last().unwrap();
-        Ok(Leads::constuct_url(file_name.to_string()))
+        Ok(Leads::constuct_url(file_name))
     }
 
     pub async fn download_file(&self, file_name: String) -> APIResult<impl IntoResponse> {
