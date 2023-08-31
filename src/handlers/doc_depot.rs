@@ -14,10 +14,12 @@ pub async fn upload(
     user_details: TokenClaims,
     mut multipart: Multipart,
 ) -> APIResult<Json<Value>> {
-    let field = multipart
-        .next_field()
-        .await?
-        .ok_or_else(|| APIError::NoFileAttached)?;
+    let field = multipart.next_field().await?;
+    let field = match field {
+        Some(field) => field,
+        None => return Err(APIError::NoFileAttached),
+    };
+
     let file: File<'_> = File::try_from(field)?;
     file.validate_pdf()?;
 
